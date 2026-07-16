@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Bash(npx --yes @react-native-community/cli@latest init PartnerSpeedash --directory . --skip-git-init --install-pods false)",
+      "Bash(npx --yes @react-native-community/cli@latest init PartnerSpeedash --directory \"c:/Users/PcUser/Desktop/projects/partner-speedash\" --skip-git-init --install-pods false)",
+      "Read(//c/Users/PcUser/AppData/Local/npm-cache/_npx/2788f5fbd47acb89/node_modules/@react-native-community/cli/build/commands/init/**)",
+      "Bash(rm -rf C:/Users/PcUser/AppData/Local/Temp/claude/c--Users-PcUser-Desktop-projects-partner-speedash/4f2de10a-1fa7-4523-a7ec-1bbc50505aa7/scratchpad/rn-stage)",
+      "Bash(mkdir -p C:/Users/PcUser/AppData/Local/Temp/claude/c--Users-PcUser-Desktop-projects-partner-speedash/4f2de10a-1fa7-4523-a7ec-1bbc50505aa7/scratchpad/rn-stage)",
+      "Bash(npx --yes @react-native-community/cli@latest init PartnerSpeedash --skip-git-init --skip-install --install-pods false)",
+      "Bash(echo \"tsc exit: $?\")",
+      "Bash(npx jest *)",
+      "Bash(npm view *)",
+      "Bash(rm -rf \"C:/Users/PcUser/AppData/Local/Temp/claude/c--Users-PcUser-Desktop-projects-partner-speedash/4f2de10a-1fa7-4523-a7ec-1bbc50505aa7/scratchpad/rn-stage\" \"C:/Users/PcUser/AppData/Local/Temp/claude/c--Users-PcUser-Desktop-projects-partner-speedash/4f2de10a-1fa7-4523-a7ec-1bbc50505aa7/scratchpad/bundle.js\" \"C:/Users/PcUser/AppData/Local/Temp/claude/c--Users-PcUser-Desktop-projects-partner-speedash/4f2de10a-1fa7-4523-a7ec-1bbc50505aa7/scratchpad/bundle-assets\" *)",
+      "Bash(npx react-native *)",
+      "Bash(echo \"EXIT=$?\")",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\PcUser\\\\Desktop\\\\projects\\\\partner-speedash\\\\android\"; Write-Output \"=====NoDefaultCurrentDirectoryInExePath=====\"; Write-Output \"[$env:NoDefaultCurrentDirectoryInExePath]\"; Write-Output \"=====direct wrapper test=====\"; cmd /c \"gradlew.bat --version\" | Select-Object -First 8)",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\PcUser\\\\Desktop\\\\projects\\\\partner-speedash\\\\android\"; Write-Output \"=====explicit .\\\\ prefix=====\"; cmd /c \".\\\\gradlew.bat --version\" | Select-Object -First 6; Write-Output \"=====with env var cleared=====\"; $env:NoDefaultCurrentDirectoryInExePath = ''; cmd /c \"gradlew.bat --version\" | Select-Object -First 6)",
+      "PowerShell($env:NoDefaultCurrentDirectoryInExePath = ''; Set-Location \"c:\\\\Users\\\\PcUser\\\\Desktop\\\\projects\\\\partner-speedash\"; npx react-native run-android --no-packager 2>&1 | Out-File -Encoding utf8 \"C:\\\\Users\\\\PcUser\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-PcUser-Desktop-projects-partner-speedash\\\\4f2de10a-1fa7-4523-a7ec-1bbc50505aa7\\\\scratchpad\\\\build2.log\"; Write-Output \"EXIT=$LASTEXITCODE\"; Get-Content \"C:\\\\Users\\\\PcUser\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-PcUser-Desktop-projects-partner-speedash\\\\4f2de10a-1fa7-4523-a7ec-1bbc50505aa7\\\\scratchpad\\\\build2.log\" -Tail 20)",
+      "Bash(netstat -ano)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"http://localhost:8081/status\")",
+      "Bash(jps -l)",
+      "Bash(curl -s -o /dev/null \"http://localhost:8081/status\")",
+      "Bash(curl -s \"http://localhost:8081/status\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} | %{size_download} bytes | %{time_total}s\\\\n\" \"http://localhost:8081/index.bundle?platform=android&dev=true&minify=false\")",
+      "Bash(adb shell *)",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(adb logcat *)"
+    ]
+  }
+}

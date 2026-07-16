@@ -2,6 +2,10 @@
 #
 .DS_Store
 
+# Env (ignore all env files, including the example template)
+.env
+.env.*
+
 # Xcode
 #
 build/
@@ -56,6 +60,12 @@ yarn-error.log
 # Bundle artifact
 *.jsbundle
 
+# Embedded Android JS bundle + assets copied by `react-native bundle`
+# (generated build output; the app normally loads JS from Metro)
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/res/drawable-*/
+android/app/src/main/res/raw/
+
 # Ruby / CocoaPods
 **/Pods/
 /vendor/bundle/
@@ -74,5 +84,19 @@ yarn-error.log
 !.yarn/sdks
 !.yarn/versions
 
-# Claude Code local settings
-.claude/
+# Logs
+*.log
+logs/
+
+# IDE / Editor
+.vscode/
+*.swp
+*.swo
+
+# Expo (if used)
+.expo/
+dist/
+web-build/
+
+# Claude Code project instructions (local, not shared)
+CLAUDE.md
