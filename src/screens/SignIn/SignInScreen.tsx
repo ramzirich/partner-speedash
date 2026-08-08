@@ -1,41 +1,47 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
+  Animated,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   Text,
   TextInput,
-  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '../../components/AppButton';
+import { AppDialog } from '../../components/AppDialog';
 import { AppTextField } from '../../components/AppTextField';
+import { BrandBackdrop } from '../../components/BrandBackdrop';
+import { BrandHeader } from '../../components/BrandHeader';
+import { InlineAlert } from '../../components/InlineAlert';
 import { MotoLoader } from '../../components/MotoLoader';
 import { authApi, toApiError } from '../../api';
+import type { ApiErrorCode } from '../../api';
 import { useAppDispatch, setCredentials } from '../../store';
+import { useEntranceAnimation } from '../../hooks/useEntranceAnimation';
 import { useIsMounted } from '../../hooks/useIsMounted';
 import { validateEmail, validatePassword } from '../../utils/validation';
 import { ScreenProps } from '../../navigation';
 import { styles } from './SignInScreen.styles';
 
-/**
- * Sign-in form: email + password → Home on success.
- *
- * Notes:
- *  - `useIsMounted` guards every post-await setState (the screen can be popped
- *    mid-request).
- *  - The MotoLoader overlay blocks the form while the (mock) API call runs.
- *  - On success we `reset` to Home so Back doesn't return to the login form.
- */
+/** Content groups that stagger in after the brand mark: intro, form, actions. */
+const ENTRANCE_GROUPS = 3;
+
+const isCredentialFailure = (code: ApiErrorCode): boolean =>
+  code === 'UNAUTHORIZED';
+
+/** How long the inline rejection sits under the password field before fading. */
+const ERROR_VISIBLE_MS = 4000;
+
 const SignInScreenComponent: React.FC<ScreenProps<'SignIn'>> = ({
   navigation,
 }) => {
   const isMounted = useIsMounted();
   const dispatch = useAppDispatch();
   const passwordRef = useRef<TextInput>(null);
+  const entrance = useEntranceAnimation(ENTRANCE_GROUPS);
+  const [introEntrance, formEntrance, actionsEntrance] = entrance.groups;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,6 +49,18 @@ const SignInScreenComponent: React.FC<ScreenProps<'SignIn'>> = ({
     {},
   );
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [errorVisible, setErrorVisible] = useState(false);
+  const [errorContent, setErrorContent] = useState({ title: '', message: '' });
+
+  useEffect(() => {
+    if (!formError || loading) {
+      return;
+    }
+    passwordRef.current?.focus();
+    const timerId = setTimeout(() => setFormError(''), ERROR_VISIBLE_MS);
+    return () => clearTimeout(timerId);
+  }, [formError, loading]);
 
   const handleSubmit = useCallback(async () => {
     const emailError = validateEmail(email);
@@ -52,6 +70,7 @@ const SignInScreenComponent: React.FC<ScreenProps<'SignIn'>> = ({
       return;
     }
     setErrors({});
+    setFormError('');
 
     setLoading(true);
     try {
@@ -69,7 +88,15 @@ const SignInScreenComponent: React.FC<ScreenProps<'SignIn'>> = ({
         return;
       }
       const apiError = toApiError(error);
-      Alert.alert('Could not sign in', apiError.userMessage);
+      if (isCredentialFailure(apiError.code)) {
+        setFormError(apiError.userMessage);
+      } else {
+        setErrorContent({
+          title: 'Could not sign in',
+          message: apiError.userMessage,
+        });
+        setErrorVisible(true);
+      }
     } finally {
       if (isMounted()) {
         setLoading(false);
@@ -87,6 +114,7 @@ const SignInScreenComponent: React.FC<ScreenProps<'SignIn'>> = ({
 
   const handleEmailChange = useCallback((text: string) => {
     setEmail(text);
+    setFormError('');
     setErrors(prev =>
       prev.email ? { ...prev, email: validateEmail(text) } : prev,
     );
@@ -94,44 +122,53 @@ const SignInScreenComponent: React.FC<ScreenProps<'SignIn'>> = ({
 
   const handlePasswordChange = useCallback((text: string) => {
     setPassword(text);
+    setFormError('');
     setErrors(prev =>
       prev.password ? { ...prev, password: validatePassword(text) } : prev,
     );
   }, []);
 
-  const goToForgot = useCallback(
-    () => navigation.navigate('ForgotPassword'),
-    [navigation],
+  const dismissError = useCallback(() => setErrorVisible(false), []);
+
+  // Memoized so the entrance groups don't re-allocate a style array on every
+  // keystroke — the screen re-renders on each character typed.
+  const introStyle = useMemo(
+    () => [styles.intro, introEntrance],
+    [introEntrance],
+  );
+  const formStyle = useMemo(() => [styles.form, formEntrance], [formEntrance]);
+  const actionsStyle = useMemo(
+    () => [styles.actions, actionsEntrance],
+    [actionsEntrance],
   );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" />
+
+      {/* Landing's wash blobs, so the screen isn't a blank sheet. */}
+      <BrandBackdrop />
+
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <Pressable
-              onPress={navigation.goBack}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-              style={styles.backButton}>
-              <Text style={styles.backIcon}>‹</Text>
-            </Pressable>
-          </View>
+          keyboardShouldPersistTaps="handled"
+        >
+          <Animated.View style={entrance.brand}>
+            <BrandHeader onBack={navigation.goBack} testID="signin-brand" />
+          </Animated.View>
 
-          <View style={styles.intro}>
+          <Animated.View style={introStyle}>
             <Text style={styles.title}>Welcome back</Text>
             <Text style={styles.subtitle}>
               Sign in to start accepting deliveries and tracking your earnings.
             </Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.form}>
+          <Animated.View style={formStyle}>
             <AppTextField
               label="Email"
               value={email}
@@ -139,10 +176,10 @@ const SignInScreenComponent: React.FC<ScreenProps<'SignIn'>> = ({
               onBlur={handleEmailBlur}
               error={errors.email}
               placeholder="you@example.com"
-              // `visible-password` is the Android trick that hard-disables the
-              // suggestion strip + autofill dropdown while keeping a normal
-              // QWERTY keyboard — so tapping shows the keyboard and nothing else.
-              keyboardType="visible-password"
+              keyboardType="email-address"
+              textContentType="username"
+              autoComplete="email"
+              importantForAutofill="yes"
               autoCapitalize="none"
               returnKeyType="next"
               onSubmitEditing={() => passwordRef.current?.focus()}
@@ -155,23 +192,33 @@ const SignInScreenComponent: React.FC<ScreenProps<'SignIn'>> = ({
               onChangeText={handlePasswordChange}
               onBlur={handlePasswordBlur}
               error={errors.password}
-              placeholder="Your password"
               secureTextEntry
+              textContentType="password"
+              autoComplete="current-password"
+              importantForAutofill="yes"
               autoCapitalize="none"
               returnKeyType="go"
               onSubmitEditing={handleSubmit}
               testID="signin-password"
             />
-            <Pressable
+            {/* Sits directly under the password field — where the fix happens —
+                and retires itself after ERROR_VISIBLE_MS. */}
+            <InlineAlert
+              message={formError}
+              tone="danger"
+              testID="signin-form-error"
+            />
+            {/* <Pressable
               onPress={goToForgot}
               hitSlop={8}
               accessibilityRole="button"
-              style={styles.forgotRow}>
+              style={styles.forgotRow}
+            >
               <Text style={styles.forgotText}>Forgot password?</Text>
-            </Pressable>
-          </View>
+            </Pressable> */}
+          </Animated.View>
 
-          <View style={styles.actions}>
+          <Animated.View style={actionsStyle}>
             <AppButton
               label="Sign In"
               variant="primary"
@@ -180,11 +227,20 @@ const SignInScreenComponent: React.FC<ScreenProps<'SignIn'>> = ({
               loading={loading}
               testID="signin-submit"
             />
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
 
       <MotoLoader visible={loading} label="Signing you in…" />
+
+      <AppDialog
+        visible={errorVisible}
+        title={errorContent.title}
+        message={errorContent.message}
+        tone="danger"
+        onConfirm={dismissError}
+        testID="signin-error"
+      />
     </SafeAreaView>
   );
 };

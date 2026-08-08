@@ -2,6 +2,7 @@ import {
   API_BASE_URL,
   API_TIMEOUT_MS,
   ASSET_BASE_URL,
+  SOCKET_URL,
   USE_MOCK_API,
 } from '@env';
 
@@ -25,11 +26,14 @@ const toBoolean = (value: string | undefined, fallback: boolean): boolean => {
   return value.toLowerCase() === 'true';
 };
 
+const apiBaseUrl = API_BASE_URL ?? 'http://10.0.2.2:3000';
+
 export const ENV = Object.freeze({
-  apiBaseUrl: API_BASE_URL ?? 'http://10.0.2.2:3000',
+  apiBaseUrl,
   apiTimeoutMs: toNumber(API_TIMEOUT_MS, 15000),
   useMockApi: toBoolean(USE_MOCK_API, true),
   assetBaseUrl: ASSET_BASE_URL ?? 'https://images.unsplash.com',
+  socketUrl: SOCKET_URL ?? apiBaseUrl,
 });
 
 export type AppEnv = typeof ENV;

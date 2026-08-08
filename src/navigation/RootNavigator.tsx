@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { LandingScreen } from '../screens/Landing';
 import { SignInScreen } from '../screens/SignIn';
+import { SignUpScreen } from '../screens/SignUp';
 import { ForgotPasswordScreen } from '../screens/ForgotPassword';
 import { OtpScreen } from '../screens/Otp';
 import { HomeScreen } from '../screens/Home';
@@ -42,6 +43,8 @@ export const RootNavigator: React.FC = () => {
       return <LandingScreen navigation={navigation} params={current.params} />;
     case 'SignIn':
       return <SignInScreen navigation={navigation} params={current.params} />;
+    case 'SignUp':
+      return <SignUpScreen navigation={navigation} params={current.params} />;
     case 'ForgotPassword':
       return (
         <ForgotPasswordScreen

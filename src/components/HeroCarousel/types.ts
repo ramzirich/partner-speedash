@@ -1,5 +1,7 @@
 import { ImageResizeMode, ImageSourcePropType } from 'react-native';
 
+export type HeroSlideTone = 'dark' | 'light';
+
 /**
  * A single slide in the <HeroCarousel>.
  *
@@ -19,4 +21,6 @@ export interface HeroSlide {
   resizeMode?: ImageResizeMode;
   /** Backdrop behind a 'contain' image (e.g. brand white for the logo slide). */
   backgroundColor?: string;
+  /** Defaults to 'dark'. Drives caption colour, scrims and dot contrast. */
+  tone?: HeroSlideTone;
 }

@@ -29,6 +29,26 @@ export const typography = Object.freeze({
     lineHeight: 20,
     fontWeight: '700',
   } as TextStyle,
+  /**
+   * Hero caption pair. Deliberately colourless — the hero picks the colour from
+   * the slide's `tone`, so the same token works on a photo and on a pale slide.
+   */
+  heroTitle: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '800',
+  } as TextStyle,
+  heroSubtitle: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '500',
+  } as TextStyle,
+  caption: {
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  } as TextStyle,
   link: {
     fontSize: 15,
     lineHeight: 20,

@@ -1,5 +1,5 @@
 {
-  "name": "PartnerSpeedash",
+  "name": "Driver",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -10,12 +10,19 @@
     "test": "jest"
   },
   "dependencies": {
+    "@react-native-community/geolocation": "^3.4.0",
     "@react-native/new-app-screen": "0.86.0",
     "@reduxjs/toolkit": "^2.12.0",
     "react": "19.2.3",
     "react-native": "0.86.0",
+    "react-native-background-actions": "^4.1.0",
+    "react-native-calendars": "^1.1314.0",
+    "react-native-maps": "^1.29.0",
     "react-native-safe-area-context": "^5.5.2",
-    "react-redux": "^9.3.0"
+    "react-native-vector-icons": "^10.3.0",
+    "react-native-webview": "^14.0.1",
+    "react-redux": "^9.3.0",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -26,11 +33,11 @@
     "@react-native-community/cli-platform-ios": "20.1.0",
     "@react-native/babel-preset": "0.86.0",
     "@react-native/eslint-config": "0.86.0",
-    "@react-native/jest-preset": "^0.86.0",
     "@react-native/metro-config": "0.86.0",
     "@react-native/typescript-config": "0.86.0",
     "@types/jest": "^29.5.13",
     "@types/react": "^19.2.0",
+    "@types/react-native-vector-icons": "^6.4.18",
     "@types/react-test-renderer": "^19.1.0",
     "eslint": "^8.19.0",
     "jest": "^29.6.3",

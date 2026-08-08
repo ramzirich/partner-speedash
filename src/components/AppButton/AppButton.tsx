@@ -11,7 +11,12 @@ import {
 import { colors } from '../../theme';
 import { styles } from './AppButton.styles';
 
-export type AppButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type AppButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'outline'
+  | 'ghost'
+  | 'danger';
 
 export interface AppButtonProps {
   label: string;
@@ -27,10 +32,7 @@ export interface AppButtonProps {
 
 /**
  * Reusable, themeable button.
- *
- * - `memo` so it doesn't re-render when an unrelated parent state changes.
  * - Spinner state is mutually exclusive with the label and blocks presses.
- * - Fully accessible (role, state, disabled hint).
  */
 const AppButtonComponent: React.FC<AppButtonProps> = ({
   label,
@@ -60,6 +62,7 @@ const AppButtonComponent: React.FC<AppButtonProps> = ({
     styles.label,
     variant === 'primary' && styles.labelPrimary,
     variant === 'secondary' && styles.labelSecondary,
+    variant === 'outline' && styles.labelOutline,
     variant === 'ghost' && styles.labelGhost,
     variant === 'danger' && styles.labelDanger,
   ];

@@ -10,15 +10,20 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { AppButton } from '../../components/AppButton';
 import { OtpInput } from '../../components/OtpInput';
 import { MotoLoader } from '../../components/MotoLoader';
 import { authApi, OTP_LENGTH, toApiError } from '../../api';
 import { useIsMounted } from '../../hooks/useIsMounted';
 import { ScreenProps } from '../../navigation';
+import { colors } from '../../theme';
 import { styles } from './OtpScreen.styles';
 
 const RESEND_COOLDOWN_SEC = 30;
+
+/** Sized to fill the 44×44 tap target without crowding it. */
+const BACK_ICON_SIZE = 26;
 
 /**
  * OTP verification step. The code was already requested by the previous screen;
@@ -125,7 +130,11 @@ const OtpScreenComponent: React.FC<ScreenProps<'Otp'>> = ({
               accessibilityRole="button"
               accessibilityLabel="Go back"
               style={styles.backButton}>
-              <Text style={styles.backIcon}>‹</Text>
+              <Ionicons
+                name="chevron-back"
+                size={BACK_ICON_SIZE}
+                color={colors.textPrimary}
+              />
             </Pressable>
           </View>
 

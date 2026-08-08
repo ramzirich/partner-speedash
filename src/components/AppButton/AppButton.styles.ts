@@ -24,6 +24,11 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  outline: {
+    backgroundColor: colors.background,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
   ghost: {
     backgroundColor: colors.transparent,
   },
@@ -50,6 +55,9 @@ export const styles = StyleSheet.create({
   },
   labelSecondary: {
     color: colors.textPrimary,
+  },
+  labelOutline: {
+    color: colors.primary,
   },
   labelGhost: {
     color: colors.primary,

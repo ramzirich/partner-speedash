@@ -1,6 +1,28 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Keep reporting the driver's location while the app is backgrounded. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <queries>
+      <package android:name="com.whatsapp" />
+      <package android:name="com.whatsapp.w4b" />
+      <intent>
+        <action android:name="android.intent.action.VIEW" />
+        <data android:scheme="whatsapp" />
+      </intent>
+      <intent>
+        <action android:name="android.intent.action.DIAL" />
+        <data android:scheme="tel" />
+      </intent>
+    </queries>
 
     <application
       android:name=".MainApplication"
@@ -11,6 +33,14 @@
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
+
+      <!-- Google Maps SDK key for <DriverMap>. The value is injected by
+           app/build.gradle from the gitignored root .env — never hardcode it
+           here. An empty key builds fine but renders a blank grey map. -->
+      <meta-data
+        android:name="com.google.android.geo.API_KEY"
+        android:value="${googleMapsApiKey}" />
+
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
@@ -23,5 +53,13 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+
+      <!-- react-native-background-actions foreground service. On Android 14+
+           the manifest type must match the type we start it with in JS
+           (foregroundServiceType: ['location']). -->
+      <service
+        android:name="com.asterinet.react.bgactions.RNBackgroundActionsTask"
+        android:foregroundServiceType="location"
+        tools:node="merge" />
     </application>
 </manifest>

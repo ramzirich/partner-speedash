@@ -6,11 +6,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { colors } from '../../theme';
 import { styles } from './AppTextField.styles';
 
 type FocusHandler = NonNullable<TextInputProps['onFocus']>;
 type BlurHandler = NonNullable<TextInputProps['onBlur']>;
+
+const TOGGLE_ICON_SIZE = 20;
 
 export interface AppTextFieldProps
   extends Omit<TextInputProps, 'style' | 'secureTextEntry'> {
@@ -28,6 +31,13 @@ export interface AppTextFieldProps
  * - Focus state is local; it never bubbles up to the screen, so typing in one
  *   field doesn't re-render siblings.
  * - Manages its own password show/hide so screens stay declarative.
+ * - Autofill semantics (`autoComplete`, `textContentType`,
+ *   `importantForAutofill`) are declared by the **call site**, not defaulted
+ *   here: only the screen knows whether a field is an email, a current
+ *   password, or a one-time code. Defaulting them off app-wide silently broke
+ *   Keychain/Google autofill on every auth screen. Likewise the paste menu
+ *   stays enabled (RN default) so password-manager users can paste — pass
+ *   `contextMenuHidden` explicitly on the rare field that must block it.
  */
 const AppTextFieldComponent = forwardRef<TextInput, AppTextFieldProps>(
   (
@@ -38,12 +48,8 @@ const AppTextFieldComponent = forwardRef<TextInput, AppTextFieldProps>(
       leading,
       onFocus,
       onBlur,
-      autoComplete = 'off',
-      importantForAutofill = 'no',
-      textContentType = 'none',
       autoCorrect = false,
       spellCheck = false,
-      contextMenuHidden = true,
       ...rest
     },
     ref,
@@ -73,7 +79,14 @@ const AppTextFieldComponent = forwardRef<TextInput, AppTextFieldProps>(
 
     return (
       <View style={styles.container}>
-        <Text style={styles.label}>{label}</Text>
+        <Text
+          style={[
+            styles.label,
+            focused && styles.labelFocused,
+            hasError && styles.labelError,
+          ]}>
+          {label}
+        </Text>
         <View
           style={[
             styles.field,
@@ -89,22 +102,21 @@ const AppTextFieldComponent = forwardRef<TextInput, AppTextFieldProps>(
             onFocus={handleFocus}
             onBlur={handleBlur}
             accessibilityLabel={label}
-            autoComplete={autoComplete}
-            importantForAutofill={importantForAutofill}
-            textContentType={textContentType}
             autoCorrect={autoCorrect}
             spellCheck={spellCheck}
-            contextMenuHidden={contextMenuHidden}
             {...rest}
           />
           {secureTextEntry ? (
             <TouchableOpacity
               onPress={toggleHidden}
-              hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
               style={styles.toggle}>
-              <Text style={styles.toggleText}>{hidden ? 'Show' : 'Hide'}</Text>
+              <Ionicons
+                name={hidden ? 'eye-outline' : 'eye-off-outline'}
+                size={TOGGLE_ICON_SIZE}
+                color={colors.textSecondary}
+              />
             </TouchableOpacity>
           ) : null}
         </View>

@@ -28,11 +28,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: -spacing.sm,
   },
-  backIcon: {
-    fontSize: 28,
-    lineHeight: 28,
-    color: colors.textPrimary,
-  },
   intro: {
     gap: spacing.sm,
   },

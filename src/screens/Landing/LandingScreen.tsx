@@ -1,56 +1,43 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Animated, Pressable, StatusBar, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { AppButton } from '../../components/AppButton';
-import { HeroCarousel, HeroSlide } from '../../components/HeroCarousel';
+import { RiderHero } from '../../components/RiderHero';
+import { ValueStrip, ValueStripItem } from '../../components/ValueStrip';
 import { ScreenProps } from '../../navigation';
-import { colors } from '../../theme';
+import { colors, spacing } from '../../theme';
 import { useLandingAnimation } from './useLandingAnimation';
 import { styles } from './LandingScreen.styles';
 
+const RIDER_ARTWORK = require('../../assets/images/delivery1.jpg');
 
-const HERO_SLIDES: HeroSlide[] = [
-  {
-    key: 'vision',
-    image: require('../../assets/images/logo.png'),
-    resizeMode: 'contain',
-    backgroundColor: colors.background,
-    title: 'Delivering more than parcels',
-    subtitle:
-      'SpeedDash connects neighbourhoods, riders and restaurants — fast, fair and reliable.',
-  },
-  {
-    key: 'riders',
-    image: {
-      uri: 'https://images.unsplash.com/photo-1753806901333-44632dc78b49?w=1080&q=80',
-    },
-    title: 'Ride with us. Earn on your terms.',
-    subtitle:
-      'Flexible shifts, transparent pay and instant tips. Become a SpeedDash rider today.',
-  },
-  {
-    key: 'restaurants',
-    image: {
-      uri: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1080&q=80',
-    },
-    title: 'Grow your restaurant',
-    subtitle:
-      'Reach more hungry customers and let our riders handle every delivery. Partner with SpeedDash.',
-  },
+const VALUE_ITEMS: ValueStripItem[] = [
+  { key: 'payouts', icon: 'wallet-outline', label: 'Paid per delivery' },
+  { key: 'hours', icon: 'time-outline', label: 'Flexible hours' },
+  { key: 'support', icon: 'headset-outline', label: '24/7 support' },
 ];
 
 const LandingScreenComponent: React.FC<ScreenProps<'Landing'>> = ({
   navigation,
 }) => {
   const animated = useLandingAnimation();
+  const insets = useSafeAreaInsets();
+
+  const heroStyle = useMemo(
+    () => [styles.hero, { paddingTop: insets.top + spacing.lg }, animated.hero],
+    [insets.top, animated.hero],
+  );
 
   const handleSignIn = useCallback(
     () => navigation.navigate('SignIn'),
     [navigation],
   );
 
-  const handleForgotPassword = useCallback(
-    () => navigation.navigate('ForgotPassword'),
+  const handleSignUp = useCallback(
+    () => navigation.navigate('SignUp'),
     [navigation],
   );
 
@@ -62,19 +49,41 @@ const LandingScreenComponent: React.FC<ScreenProps<'Landing'>> = ({
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      {/* Pale hero behind a translucent bar → dark icons. */}
       <StatusBar
         barStyle="dark-content"
         translucent
-        backgroundColor="transparent"
+        backgroundColor={colors.transparent}
       />
       <View style={styles.container}>
-        {/* Hero — auto-advancing carousel (vision → riders → restaurants) */}
-        <Animated.View style={[styles.heroWrapper, animated.hero]}>
-          <HeroCarousel slides={HERO_SLIDES} intervalMs={3500} />
+        <Animated.View style={heroStyle}>
+          <View pointerEvents="none" style={styles.backdrop}>
+            <View style={styles.backdropBlob} />
+            <View style={styles.backdropBlobSoft} />
+            <View style={styles.backdropAccent} />
+          </View>
+          <RiderHero
+            source={RIDER_ARTWORK}
+            facing="left"
+            travel="loop"
+            showSpeedLines
+            showDust
+            dropWhiteBackground
+            showShadow={false}
+          />
+
+          <View style={styles.headlineBlock}>
+            <Text style={styles.headline}>Drive with SpeedDash</Text>
+            <Text style={styles.subhead}>
+              Your city, your schedule, your earnings.
+            </Text>
+          </View>
         </Animated.View>
 
-        {/* Content */}
+        {/* Content — one primary CTA, everything else subordinate to it. */}
         <Animated.View style={[styles.content, animated.content]}>
+          <ValueStrip items={VALUE_ITEMS} />
+
           <View style={styles.actions}>
             <AppButton
               label="Sign In"
@@ -83,13 +92,19 @@ const LandingScreenComponent: React.FC<ScreenProps<'Landing'>> = ({
               onPress={handleSignIn}
               testID="landing-sign-in"
             />
-            <Pressable
-              onPress={handleForgotPassword}
-              hitSlop={8}
-              accessibilityRole="button"
-              style={styles.forgotButton}>
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </Pressable>
+
+            <View style={styles.altActionRow}>
+              <Text style={styles.altActionPrompt}>New to SpeedDash?</Text>
+              <Pressable
+                onPress={handleSignUp}
+                hitSlop={8}
+                style={styles.altActionHit}
+                accessibilityRole="button"
+                accessibilityLabel="Sign up"
+                testID="landing-sign-up">
+                <Text style={styles.altActionLink}>Sign up</Text>
+              </Pressable>
+            </View>
 
             {/* TODO: remove — dev-only shortcut to Home, bypasses sign-in. */}
             <AppButton

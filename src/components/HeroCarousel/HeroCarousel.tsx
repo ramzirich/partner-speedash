@@ -13,17 +13,37 @@ import {
   Pressable,
   StyleProp,
   Text,
+  TextStyle,
   useWindowDimensions,
   View,
   ViewStyle,
 } from 'react-native';
 import { styles } from './HeroCarousel.styles';
-import { HeroSlide } from './types';
+import { HeroSlide, HeroSlideTone } from './types';
+
+/**
+ * Tone-keyed style arrays, hoisted to module scope so they're allocated once
+ * instead of on every render (they'd otherwise break `memo` on the rows).
+ */
+const TITLE_STYLES: Record<HeroSlideTone, StyleProp<TextStyle>> = {
+  dark: styles.title,
+  light: [styles.title, styles.titleLight],
+};
+const SUBTITLE_STYLES: Record<HeroSlideTone, StyleProp<TextStyle>> = {
+  dark: styles.subtitle,
+  light: [styles.subtitle, styles.subtitleLight],
+};
+const DOT_STYLES: Record<HeroSlideTone, StyleProp<ViewStyle>> = {
+  dark: styles.dot,
+  light: [styles.dot, styles.dotOnLight],
+};
+const DOT_ACTIVE: StyleProp<ViewStyle> = [styles.dot, styles.dotActive];
 
 export interface HeroCarouselProps {
   slides: HeroSlide[];
   intervalMs?: number;
   resumeDelayMs?: number;
+  onIndexChange?: (index: number) => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -40,6 +60,7 @@ const HeroCarouselComponent: React.FC<HeroCarouselProps> = ({
   slides,
   intervalMs = 2000,
   resumeDelayMs = 6000,
+  onIndexChange,
   style,
 }) => {
   const { width } = useWindowDimensions();
@@ -130,10 +151,14 @@ const HeroCarouselComponent: React.FC<HeroCarouselProps> = ({
   const onMomentumScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const i = Math.round(e.nativeEvent.contentOffset.x / width);
+      if (i === indexRef.current) {
+        return;
+      }
       indexRef.current = i;
       setIndex(i);
+      onIndexChange?.(i);
     },
-    [width],
+    [width, onIndexChange],
   );
 
   const getItemLayout = useCallback(
@@ -146,31 +171,46 @@ const HeroCarouselComponent: React.FC<HeroCarouselProps> = ({
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: HeroSlide }) => (
-      <View
-        style={[
-          styles.slide,
-          { width },
-          item.backgroundColor
-            ? { backgroundColor: item.backgroundColor }
-            : null,
-        ]}
-        accessible
-        accessibilityLabel={`${item.title}. ${item.subtitle}`}>
-        <Image
-          source={item.image}
-          resizeMode={item.resizeMode ?? 'cover'}
-          style={styles.image}
-        />
-        <View pointerEvents="none" style={styles.scrimTop} />
-        <View pointerEvents="none" style={styles.scrimMid} />
-        <View pointerEvents="none" style={styles.scrimBottom} />
-        <View pointerEvents="none" style={styles.caption}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.subtitle}>{item.subtitle}</Text>
+    ({ item }: { item: HeroSlide }) => {
+      const tone = item.tone ?? 'dark';
+      const isDark = tone === 'dark';
+
+      return (
+        <View
+          style={[
+            styles.slide,
+            { width },
+            item.backgroundColor
+              ? { backgroundColor: item.backgroundColor }
+              : null,
+          ]}
+          accessible
+          accessibilityLabel={`${item.title}. ${item.subtitle}`}>
+          <Image
+            source={item.image}
+            resizeMode={item.resizeMode ?? 'cover'}
+            style={styles.image}
+          />
+          {isDark ? (
+            <>
+              <View pointerEvents="none" style={styles.statusScrim1} />
+              <View pointerEvents="none" style={styles.statusScrim2} />
+              <View pointerEvents="none" style={styles.statusScrim3} />
+              <View pointerEvents="none" style={styles.scrim1} />
+              <View pointerEvents="none" style={styles.scrim2} />
+              <View pointerEvents="none" style={styles.scrim3} />
+              <View pointerEvents="none" style={styles.scrim4} />
+              <View pointerEvents="none" style={styles.scrim5} />
+              <View pointerEvents="none" style={styles.scrim6} />
+            </>
+          ) : null}
+          <View pointerEvents="none" style={styles.caption}>
+            <Text style={TITLE_STYLES[tone]}>{item.title}</Text>
+            <Text style={SUBTITLE_STYLES[tone]}>{item.subtitle}</Text>
+          </View>
         </View>
-      </View>
-    ),
+      );
+    },
     [width],
   );
 
@@ -206,7 +246,13 @@ const HeroCarouselComponent: React.FC<HeroCarouselProps> = ({
               accessibilityRole="button"
               accessibilityState={{ selected: i === index }}
               accessibilityLabel={`Show slide ${i + 1} of ${count}`}>
-              <View style={[styles.dot, i === index && styles.dotActive]} />
+              <View
+                style={
+                  i === index
+                    ? DOT_ACTIVE
+                    : DOT_STYLES[slides[index]?.tone ?? 'dark']
+                }
+              />
             </Pressable>
           ))}
         </View>

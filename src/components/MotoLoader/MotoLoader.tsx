@@ -1,102 +1,108 @@
-import React, { memo, useCallback, useState } from 'react';
-import {
-  Animated,
-  LayoutChangeEvent,
-  StyleProp,
-  View,
-  ViewStyle,
-} from 'react-native';
-import { RiderAnimation } from '../RiderAnimation';
-import { useMotoLoader } from './useMotoLoader';
+import React, { memo, useCallback, useMemo, useState } from 'react';
+import { Animated, LayoutChangeEvent, Text, View } from 'react-native';
+import { BrandBackdrop } from '../BrandBackdrop';
+import { RiderHero } from '../RiderHero';
+import { useMotoLoaderAnimation } from './useMotoLoaderAnimation';
 import { styles } from './MotoLoader.styles';
 
-// The RiderAnimation art is authored in a fixed 240 x 150 box.
-const ART_W = 240;
-const ART_H = 150;
+const RIDER_ARTWORK = require('../../assets/images/delivery1.jpg');
+
+const CROSS_MS = 1500;
+const RIDER_SIZE = 140;
 
 export interface MotoLoaderProps {
   visible: boolean;
   label?: string;
-  motoWidth?: number;
-  roundTripMs?: number;
+  /** Side of the square rider, in px. */
+  riderSize?: number;
+  /** Milliseconds per leg. Lower = a rider in more of a hurry. */
+  crossMs?: number;
 }
 
-const MotoSprite: React.FC<{ width: number; style?: StyleProp<ViewStyle> }> =
-  memo(({ width, style }) => {
-    const scale = width / ART_W;
-    const height = ART_H * scale;
-    return (
-      <View style={[styles.spriteClip, { width, height }, style]}>
-        <View
-          style={[
-            styles.spriteInner,
-            {
-              width: ART_W,
-              height: ART_H,
-              left: -((ART_W / 2) * (1 - scale)),
-              top: -((ART_H / 2) * (1 - scale)),
-              transform: [{ scale }],
-            },
-          ]}>
-          <RiderAnimation />
-        </View>
-      </View>
-    );
-  });
-MotoSprite.displayName = 'MotoSprite';
-
-const MotoTrack: React.FC<{ motoWidth: number; roundTripMs: number }> = memo(
-  ({ motoWidth, roundTripMs }) => {
+const RiderTrack: React.FC<{ riderSize: number; crossMs: number }> = memo(
+  ({ riderSize, crossMs }) => {
     const [trackWidth, setTrackWidth] = useState(0);
-    const scale = motoWidth / ART_W;
-    const motoHeight = ART_H * scale;
 
     const onLayout = useCallback((e: LayoutChangeEvent) => {
       setTrackWidth(e.nativeEvent.layout.width);
     }, []);
 
-    const distance = Math.max(0, trackWidth - motoWidth);
-    const { translateX, facing } = useMotoLoader(distance, roundTripMs);
+    const trackStyle = useMemo(
+      () => [styles.track, { height: riderSize }],
+      [riderSize],
+    );
+    const boxStyle = useMemo(
+      () => [styles.riderBox, { width: riderSize, height: riderSize }],
+      [riderSize],
+    );
+
+    const travelDistance = Math.max(0, (trackWidth - riderSize) / 2);
 
     return (
-      <View style={[styles.track, { height: motoHeight + 12 }]} onLayout={onLayout}>
-        <View style={styles.road} />
-        <Animated.View
-          style={[
-            styles.mover,
-            { transform: [{ translateX }, { scaleX: facing }] },
-          ]}>
-          <MotoSprite width={motoWidth} />
-        </Animated.View>
+      <View
+        style={trackStyle}
+        onLayout={onLayout}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants">
+        <View style={boxStyle}>
+          {trackWidth > 0 ? (
+            <RiderHero
+              source={RIDER_ARTWORK}
+              facing="left"
+              travel="bounce"
+              travelDistance={travelDistance}
+              travelMs={crossMs}
+              showSpeedLines
+              showDust
+              dropWhiteBackground
+              showShadow={false}
+            />
+          ) : null}
+        </View>
       </View>
     );
   },
 );
-MotoTrack.displayName = 'MotoTrack';
+RiderTrack.displayName = 'RiderTrack';
 
 const MotoLoaderComponent: React.FC<MotoLoaderProps> = ({
   visible,
   label = 'Loading…',
-  motoWidth = 96,
-  roundTripMs = 2400,
+  riderSize = RIDER_SIZE,
+  crossMs = CROSS_MS,
 }) => {
   if (!visible) {
     return null;
   }
+  // Mounted only while busy, so the entrance runs on a fresh instance.
   return (
-    <View
-      style={styles.overlay}
-      accessibilityRole="progressbar"
-      accessibilityLabel={label}
-      accessibilityState={{ busy: true }}
-      pointerEvents="auto">
-      <View style={styles.card}>
-        <MotoTrack motoWidth={motoWidth} roundTripMs={roundTripMs} />
-        <Animated.Text style={styles.label}>{label}</Animated.Text>
-      </View>
-    </View>
+    <MotoLoaderOverlay label={label} riderSize={riderSize} crossMs={crossMs} />
   );
 };
+
+const MotoLoaderOverlay: React.FC<Required<Omit<MotoLoaderProps, 'visible'>>> =
+  memo(({ label, riderSize, crossMs }) => {
+    const animated = useMotoLoaderAnimation();
+
+    return (
+      <Animated.View
+        style={[styles.overlay, animated.scrim]}
+        accessibilityRole="progressbar"
+        accessibilityLabel={label}
+        accessibilityState={{ busy: true }}
+        testID="moto-loader"
+        pointerEvents="auto">
+        <Animated.View style={[styles.cardShadow, animated.card]}>
+          <View style={styles.card}>
+            <BrandBackdrop />
+            <RiderTrack riderSize={riderSize} crossMs={crossMs} />
+            <Text style={styles.label}>{label}</Text>
+          </View>
+        </Animated.View>
+      </Animated.View>
+    );
+  });
+MotoLoaderOverlay.displayName = 'MotoLoaderOverlay';
 
 export const MotoLoader = memo(MotoLoaderComponent);
 MotoLoader.displayName = 'MotoLoader';

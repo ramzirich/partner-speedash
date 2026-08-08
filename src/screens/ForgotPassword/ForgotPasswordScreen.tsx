@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { AppButton } from '../../components/AppButton';
 import { AppTextField } from '../../components/AppTextField';
 import { MotoLoader } from '../../components/MotoLoader';
@@ -17,7 +18,11 @@ import { authApi, toApiError } from '../../api';
 import { useIsMounted } from '../../hooks/useIsMounted';
 import { validateEmail } from '../../utils/validation';
 import { ScreenProps } from '../../navigation';
+import { colors } from '../../theme';
 import { styles } from './ForgotPasswordScreen.styles';
+
+/** Sized to fill the 44×44 tap target without crowding it. */
+const BACK_ICON_SIZE = 26;
 
 /**
  * Forgot-password step 1: collect the email, request a one-time code, then move
@@ -78,7 +83,11 @@ const ForgotPasswordScreenComponent: React.FC<ScreenProps<'ForgotPassword'>> = (
               accessibilityRole="button"
               accessibilityLabel="Go back"
               style={styles.backButton}>
-              <Text style={styles.backIcon}>‹</Text>
+              <Ionicons
+                name="chevron-back"
+                size={BACK_ICON_SIZE}
+                color={colors.textPrimary}
+              />
             </Pressable>
           </View>
 
@@ -98,6 +107,9 @@ const ForgotPasswordScreenComponent: React.FC<ScreenProps<'ForgotPassword'>> = (
               error={error}
               placeholder="you@example.com"
               keyboardType="email-address"
+              textContentType="emailAddress"
+              autoComplete="email"
+              importantForAutofill="yes"
               autoCapitalize="none"
               returnKeyType="send"
               onSubmitEditing={handleConfirm}

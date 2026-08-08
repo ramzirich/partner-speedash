@@ -28,7 +28,6 @@ export interface RefreshRequest {
   refreshToken: string;
 }
 
-/** POST /api/refresh rotates the whole pair — new access AND refresh token. */
 export interface RefreshResponse {
   accessToken: string;
   expiresIn: number;
@@ -54,6 +53,8 @@ export interface VerifyOtpResponse {
   resetToken: string;
 }
 
+export const OTP_LENGTH = 6;
+
 export interface LogoutRequest {
   refreshToken: string;
   allDevices?: boolean;
@@ -63,17 +64,9 @@ export interface LogoutResponse {
   success: boolean;
 }
 
-const MOCK_LATENCY_MS = 7000;
-
-const delay = (ms: number): Promise<void> =>
-  new Promise(resolve => setTimeout(resolve, ms));
-
-const MOCK_OTP = '123456';
-const OTP_TTL_SEC = 120;
-
 const maskEmail = (email: string): string => {
   const [name, domain] = email.split('@');
-  return `${name.charAt(0)}***@${domain ?? 'starlake.ai'}`;
+  return `${name.charAt(0)}***@${domain ?? 'gmail.com'}`;
 };
 
 // --- Public API -------------------------------------------------------------
@@ -105,9 +98,8 @@ export const authApi = {
     });
   },
 
-  async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+  async forgotPassword(email: string): Promise<ForgotPasswordResponse> {//TODO
     if (ENV.useMockApi) {
-      await delay(MOCK_LATENCY_MS);
       if (!email) {
         throw new ApiError('UNKNOWN', 'Missing email', {
           userMessage: 'Please enter the email tied to your account.',
@@ -122,15 +114,15 @@ export const authApi = {
     });
   },
 
-  async requestOtp(email: string): Promise<RequestOtpResponse> {
+  //TODO: all otp
+  async requestOtp(email: string): Promise<RequestOtpResponse> {//TODO
     if (ENV.useMockApi) {
-      await delay(MOCK_LATENCY_MS);
       if (!email) {
         throw new ApiError('UNKNOWN', 'Missing email', {
           userMessage: 'Please enter the email tied to your account.',
         });
       }
-      return { sentTo: maskEmail(email), expiresInSec: OTP_TTL_SEC };
+      return { sentTo: maskEmail(email), expiresInSec: 120 };
     }
 
     return apiRequest<RequestOtpResponse>('/auth/otp/request', {
@@ -139,24 +131,8 @@ export const authApi = {
     });
   },
 
-  /**
-   * Step 2 of the reset flow: verify the code the driver typed. On success the
-   * caller moves on to the home screen (demo) or a set-new-password step.
-   */
   async verifyOtp(payload: VerifyOtpRequest): Promise<VerifyOtpResponse> {
     if (ENV.useMockApi) {
-      await delay(MOCK_LATENCY_MS);
-      if (payload.code.length < MOCK_OTP.length) {
-        throw new ApiError('UNKNOWN', 'Incomplete code', {
-          userMessage: `Enter the ${MOCK_OTP.length}-digit code we sent you.`,
-        });
-      }
-      if (payload.code !== MOCK_OTP) {
-        throw new ApiError('UNAUTHORIZED', 'Bad OTP', {
-          status: 401,
-          userMessage: 'That code is incorrect or has expired. Try again.',
-        });
-      }
       return { resetToken: 'mock-reset-token' };
     }
 
@@ -166,6 +142,3 @@ export const authApi = {
     });
   },
 };
-
-/** Digits expected in the OTP input (mock + UI share this single source). */
-export const OTP_LENGTH = MOCK_OTP.length;

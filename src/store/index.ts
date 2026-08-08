@@ -7,9 +7,6 @@ import {
 } from '../api/authToken';
 import { authReducer, logout, sessionRefreshed } from './authSlice';
 
-/**
- * Single app store. Add feature reducers to the `reducer` map as the app grows.
- */
 export const store = configureStore({
   reducer: {
     auth: authReducer,

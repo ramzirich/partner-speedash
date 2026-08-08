@@ -4,6 +4,9 @@ import { colors, spacing, typography } from '../../theme';
 /**
  * Styles for <SignInScreen>. Separate file per the project convention. Layout
  * is responsive: content scrolls and the form grows with the available space.
+ *
+ * The brand furniture at the top lives in <BrandBackdrop> and <BrandHeader> —
+ * shared with the other post-landing screens so they stay in step.
  */
 export const styles = StyleSheet.create({
   safeArea: {
@@ -20,25 +23,6 @@ export const styles = StyleSheet.create({
     gap: spacing.xl,
   },
 
-  // --- Header ---------------------------------------------------------------
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: spacing.sm,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: -spacing.sm,
-  },
-  backIcon: {
-    fontSize: 28,
-    lineHeight: 28,
-    color: colors.textPrimary,
-  },
-
   // --- Intro ----------------------------------------------------------------
   intro: {
     gap: spacing.sm,
@@ -48,7 +32,6 @@ export const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.body,
-    maxWidth: '92%',
   },
 
   // --- Form -----------------------------------------------------------------
