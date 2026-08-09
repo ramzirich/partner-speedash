@@ -82,15 +82,6 @@ export const styles = StyleSheet.create({
     opacity: 0.6,
   },
 
-  // Wrapper stays mounted so InlineAlert can play its fade-out; the vertical
-  // padding only applies while there is something to show.
-  statusAlert: {
-    paddingHorizontal: spacing.md,
-  },
-  statusAlertActive: {
-    paddingBottom: spacing.sm,
-  },
-
   // --- Bottom bar -----------------------------------------------------------
   tabBar: {
     flexDirection: 'row',

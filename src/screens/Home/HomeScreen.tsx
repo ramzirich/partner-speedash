@@ -26,7 +26,6 @@ import {
   todayDateString,
 } from '../../components/CalendarDatePicker';
 import type { DateRange } from '../../components/CalendarDatePicker';
-import { InlineAlert } from '../../components/InlineAlert';
 import { MotoLoader } from '../../components/MotoLoader';
 import {
   Order,
@@ -35,14 +34,12 @@ import {
   orderStepName,
 } from '../../components/OrderCard';
 import { OrderOfferBanner } from '../../components/OrderOfferBanner';
-import { WorkStatusToggle } from '../../components/WorkStatusToggle';
 import { authApi, ordersApi, toApiError, toDayUnix } from '../../api';
 import type { DriverNotification } from '../../api';
 import { useBackgroundLocation } from '../../hooks/useBackgroundLocation';
 import { useDriverOffers } from '../../hooks/useDriverOffers';
 import { useDriverSocket } from '../../hooks/useDriverSocket';
 import { useIsMounted } from '../../hooks/useIsMounted';
-import { useWorkStatus } from '../../hooks/useWorkStatus';
 import { useAppDispatch, useAppSelector, logout } from '../../store';
 import { ScreenProps } from '../../navigation';
 import { colors } from '../../theme';
@@ -122,25 +119,18 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const greeting = getGreeting();
   const displayName = firstName ? capitalize(firstName) : 'Driver';
 
-  const {
-    status: workStatus,
-    pending: workStatusPending,
-    error: workStatusError,
-    setOnline,
-  } = useWorkStatus();
-  // The socket follows the toggle above: it dials once the server confirms
-  // ONLINE and closes on OFFLINE or sign-out. Declared before the two hooks that
-  // use it so the connection is up before either subscribes or emits, and after
-  // the status so neither asserts ONLINE on the driver's behalf.
-  const online = useDriverSocket(driverId, workStatus);
-  const { position } = useBackgroundLocation(driverId, workStatus);
+  // The socket follows the session: it dials for a signed-in driver and closes
+  // on sign-out. Declared before the two hooks that use it so the connection is
+  // up before either subscribes or emits.
+  useDriverSocket(driverId);
+  const { position } = useBackgroundLocation(driverId);
   const {
     offers,
     offerIds,
     alert: offerAlert,
     dismissAlert,
     notificationSeq,
-  } = useDriverOffers(driverId, online);
+  } = useDriverOffers(driverId);
   const [range, setRange] = useState<DateRange>(defaultRange);
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
@@ -429,17 +419,12 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     () => [styles.tabBar, animated.tabBar],
     [animated.tabBar],
   );
-  const workStatusAlertStyle = useMemo(
-    () => [styles.statusAlert, workStatusError ? styles.statusAlertActive : null],
-    [workStatusError],
-  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Top bar: time-based greeting + driver name, on/off-duty switch on the
-          right. */}
+      {/* Top bar: time-based greeting + driver name, sign-out on the right. */}
       <Animated.View style={headerStyle}>
         <View pointerEvents="none" style={styles.headerBackdrop}>
           <View style={styles.headerBlob} />
@@ -452,12 +437,6 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
             {displayName}
           </Text>
         </View>
-
-        <WorkStatusToggle
-          status={workStatus}
-          pending={workStatusPending}
-          onChange={setOnline}
-        />
 
         {/* Sign-out lives here now that there is no Profile tab. The confirm
             dialog in `handleLogout` is what protects the tap. */}
@@ -481,17 +460,6 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
           )}
         </Pressable>
       </Animated.View>
-
-      {/* The toggle above shows the status the server confirmed; this says why
-          it isn't what the driver expected — a failed read on arrival, or a
-          rejected switch. */}
-      <View style={workStatusAlertStyle}>
-        <InlineAlert
-          message={workStatusError ?? ''}
-          tone="warning"
-          testID="home-work-status-error"
-        />
-      </View>
 
       {/* Content switches with the active bottom button. */}
       <View style={styles.content}>

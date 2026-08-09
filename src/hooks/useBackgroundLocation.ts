@@ -6,7 +6,6 @@ import Geolocation, {
 } from '@react-native-community/geolocation';
 import BackgroundService from 'react-native-background-actions';
 import { emitDriverLocation, locationApi } from '../api';
-import type { DriverWorkStatus, WorkStatus } from '../api';
 import { colors } from '../theme';
 import { useIsMounted } from './useIsMounted';
 import type { Coords } from './useDriverLocation';
@@ -34,7 +33,6 @@ const REPORT_INTERVAL_MS = 30_000;
  */
 let currentDriverId: string | null = null;
 
-let currentWorkStatus: DriverWorkStatus = 'OFFLINE';
 let onFix: ((coords: Coords) => void) | null = null;
 let watchId: number | null = null;
 /** Wall-clock of the last successful POST, for the 30s throttle. */
@@ -64,7 +62,6 @@ const report = (coords: Coords): void => {
     driverId: currentDriverId,
     // GeoJSON order: [longitude, latitude].
     coordinates: [coords.longitude, coords.latitude],
-    workStatus: currentWorkStatus,
     // server's pickup/drop-off geofencing (AT_PICKUP / DELIVERED transitions).
     deliveryState: 'AVAILABLE',
   });
@@ -221,10 +218,10 @@ export interface BackgroundLocation {
  * backend every ~30s in the foreground AND while backgrounded, and returns the
  * latest fix for the map.
  *
- * Runs only for a signed-in driver who is ONLINE — going off duty stops the
- * watch and the foreground service, so no position leaves the device outside
- * duty hours. Tracking also stops if the driver kills the app — resuming after a
- * kill needs persisted tokens (in-memory only for now, see CLAUDE.md §13).
+ * Runs only for a signed-in driver — signing out stops the watch and the
+ * foreground service, so no position leaves the device once the session ends.
+ * Tracking also stops if the driver kills the app — resuming after a kill needs
+ * persisted tokens (in-memory only for now, see CLAUDE.md §13).
  *
  * Note: on aggressive OEMs (Samsung/Xiaomi/Huawei) the app must also be exempt
  * from battery optimization ("Unrestricted") or the OS may freeze the process
@@ -232,17 +229,12 @@ export interface BackgroundLocation {
  */
 export const useBackgroundLocation = (
   driverId: string | undefined,
-  workStatus: WorkStatus,
 ): BackgroundLocation => {
   const isMounted = useIsMounted();
   const [position, setPosition] = useState<Coords | null>(null);
 
   useEffect(() => {
-    currentWorkStatus = workStatus;
-  }, [workStatus]);
-
-  useEffect(() => {
-    if (!driverId || workStatus !== 'ONLINE') {
+    if (!driverId) {
       return;
     }
     currentDriverId = driverId;
@@ -253,15 +245,15 @@ export const useBackgroundLocation = (
     };
     start();
 
-    // Off duty / sign-out: the watch and the foreground service both stop, so
-    // nothing is sampled, emitted or POSTed while the driver is off the clock.
-    // `position` is deliberately left alone — the map keeps showing the last
-    // known fix instead of snapping back to the default region.
+    // Sign-out: the watch and the foreground service both stop, so nothing is
+    // sampled, emitted or POSTed once the session ends. `position` is
+    // deliberately left alone — the map keeps showing the last known fix
+    // instead of snapping back to the default region.
     return () => {
       onFix = null;
       stop();
     };
-  }, [driverId, workStatus, isMounted]);
+  }, [driverId, isMounted]);
 
   return { position };
 };

@@ -1,9 +1,6 @@
 // Apps TODO:
 // - Change leaflet to google maps library -> use provided key
 
-// - Only on driver login or when opening the app, use speeddash repo GET API request /api/work-status (New todos commented in code base inside drivers.api.ts and WorkStatusToggle.tsx files)
-// - Check toggle functionality
-
 // - Partner app create order -> use speeddash-backend repo API
 // 	- see sampleCreateOrder for API payload
 

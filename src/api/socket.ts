@@ -37,15 +37,12 @@ export interface DriverNotification {
   timeout?: number;
 }
 
-export type DriverWorkStatus = 'ONLINE' | 'OFFLINE';
 export type DriverDeliveryState = 'AVAILABLE' | 'BUSY';
 
 export interface DriverLocationUpdate {
   driverId: string;
   /** GeoJSON order: [longitude, latitude] — NOT [lat, lng]. */
   coordinates: [number, number];
-  /** `OFFLINE` is silently ignored by the backend (no match, no tracking). */
-  workStatus: DriverWorkStatus;
   deliveryState: DriverDeliveryState;
 }
 
@@ -194,8 +191,8 @@ export const forgetOrderRoom = (orderId: string): void => {
  * Report the driver's position on whatever connection is already open.
  *
  * Deliberately reads the singleton instead of calling `connectSocket()`: the
- * connection belongs to `useDriverSocket` and exists only while the driver is
- * ONLINE, so an off-duty fix must never be the thing that dials the server.
+ * connection belongs to `useDriverSocket` and exists only while a driver is
+ * signed in, so a fix must never be the thing that dials the server.
  *
  * Dropped while disconnected rather than buffered — socket.io would otherwise
  * flush a stale fix on reconnect, and a fresh one is never more than ~30s away.

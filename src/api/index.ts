@@ -7,7 +7,6 @@ export {
 } from './authToken';
 export { authApi, OTP_LENGTH } from './auth.api';
 export { ordersApi, fromOrderDocument, toDayUnix } from './orders.api';
-export { driversApi, isOnline } from './drivers.api';
 export { locationApi } from './location.api';
 export {
   connectSocket,
@@ -56,16 +55,10 @@ export type {
   UpdateOrderStatusRequest,
 } from './orders.api';
 export type {
-  WorkStatus,
-  WorkStatusResponse,
-  SetWorkStatusRequest,
-} from './drivers.api';
-export type {
   DriverDeliveryState,
   DriverLocationUpdate,
   DriverNotification,
   DriverNotificationType,
-  DriverWorkStatus,
 } from './socket';
 export type {
   ReportLocationRequest,

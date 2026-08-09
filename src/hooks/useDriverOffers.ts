@@ -73,14 +73,8 @@ const offerCard = (
   note: notification.message,
 });
 
-/**
- * @param online Whether the driver is on duty, from `useDriverSocket`. Offers
- *   only arrive over a connection that exists while ONLINE, so subscribing off
- *   duty would attach listeners to a socket that is about to be torn down.
- */
 export const useDriverOffers = (
   driverId: string | undefined,
-  online: boolean,
 ): DriverOffers => {
   const [entries, setEntries] = useState<OfferEntry[]>([]);
   const [alert, setAlert] = useState<DriverAlert | null>(null);
@@ -109,21 +103,21 @@ export const useDriverOffers = (
   );
 
   /**
-   * Going off duty (or signing out) retires whatever is on screen. The prune
-   * timers die with the subscription below, so cards left up here would be
-   * stranded there permanently — and an offer the driver can no longer be given
-   * is not something to keep showing.
+   * Signing out retires whatever is on screen. The prune timers die with the
+   * subscription below, so cards left up here would be stranded there
+   * permanently — and an offer the driver can no longer be given is not
+   * something to keep showing.
    */
   useEffect(() => {
-    if (online) {
+    if (driverId) {
       return;
     }
     setEntries(prev => (prev.length > 0 ? [] : prev));
     setAlert(null);
-  }, [online]);
+  }, [driverId]);
 
   useEffect(() => {
-    if (!driverId || !online) {
+    if (!driverId) {
       return;
     }
     // The Map instance is created once by useRef, so capturing it here is safe
@@ -204,9 +198,9 @@ export const useDriverOffers = (
       pendingTimers.forEach(timer => clearTimeout(timer));
       pendingTimers.clear();
       // The connection itself is not ours to close — `useDriverSocket` owns it,
-      // and going off duty is what tears it down.
+      // and signing out is what tears it down.
     };
-  }, [driverId, online, clearTimer, drop]);
+  }, [driverId, clearTimer, drop]);
 
   const dismissAlert = useCallback(() => setAlert(null), []);
 
