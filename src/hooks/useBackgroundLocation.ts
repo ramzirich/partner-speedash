@@ -27,11 +27,11 @@ const REPORT_INTERVAL_MS = 30_000;
  * arriving in the background under the foreground service. This is the piece
  * that makes background reporting work in production, not just in the fg.
  *
- * The service is a process-wide singleton, so its driver id, map callback and
+ * The service is a process-wide singleton, so its partner id, map callback and
  * watch id live at module scope and are swapped on each mount — remounts stay
  * live without restarting the service.
  */
-let currentDriverId: string | null = null;
+let currentPartnerId: string | null = null;
 
 let onFix: ((coords: Coords) => void) | null = null;
 let watchId: number | null = null;
@@ -46,7 +46,7 @@ const toCoords = (pos: GeolocationResponse): Coords => ({
 /**
  * Publish the fix. Two channels, on purpose:
  *  - **Socket `updateLocation`** — what the dispatcher matches on. Without it the
- *    driver is invisible to `findAndAssignDriver` and no offer ever arrives; it
+ *    account is invisible to `findAndAssignDriver` and no offer ever arrives; it
  *    also drives the server-side geofencing of an in-progress delivery.
  *  - **REST `locationApi.report`** — the persisted trail (Bearer + refresh-on-401
  *    handled by `apiRequest`).
@@ -55,17 +55,17 @@ const toCoords = (pos: GeolocationResponse): Coords => ({
  * only the debug console logs are gated.
  */
 const report = (coords: Coords): void => {
-  if (!currentDriverId) {
+  if (!currentPartnerId) {
     return;
   }
   emitDriverLocation({
-    driverId: currentDriverId,
+    partnerId: currentPartnerId,
     // GeoJSON order: [longitude, latitude].
     coordinates: [coords.longitude, coords.latitude],
     // server's pickup/drop-off geofencing (AT_PICKUP / DELIVERED transitions).
     deliveryState: 'AVAILABLE',
   });
-  locationApi.report({ driverId: currentDriverId, ...coords }).catch(() => {
+  locationApi.report({ partnerId: currentPartnerId, ...coords }).catch(() => {
     if (__DEV__) {
       console.log('[location] report failed');
     }
@@ -213,14 +213,14 @@ export interface BackgroundLocation {
 }
 
 /**
- * Background driver-location tracking on the free stack (foreground service +
- * community geolocation `watchPosition`). Reports the driver's position to the
+ * Background location tracking on the free stack (foreground service +
+ * community geolocation `watchPosition`). Reports the partner's position to the
  * backend every ~30s in the foreground AND while backgrounded, and returns the
  * latest fix for the map.
  *
- * Runs only for a signed-in driver — signing out stops the watch and the
+ * Runs only for a signed-in partner — signing out stops the watch and the
  * foreground service, so no position leaves the device once the session ends.
- * Tracking also stops if the driver kills the app — resuming after a kill needs
+ * Tracking also stops if the app is killed — resuming after a kill needs
  * persisted tokens (in-memory only for now, see CLAUDE.md §13).
  *
  * Note: on aggressive OEMs (Samsung/Xiaomi/Huawei) the app must also be exempt
@@ -228,16 +228,16 @@ export interface BackgroundLocation {
  * and suspend delivery despite the foreground service.
  */
 export const useBackgroundLocation = (
-  driverId: string | undefined,
+  partnerId: string | undefined,
 ): BackgroundLocation => {
   const isMounted = useIsMounted();
   const [position, setPosition] = useState<Coords | null>(null);
 
   useEffect(() => {
-    if (!driverId) {
+    if (!partnerId) {
       return;
     }
-    currentDriverId = driverId;
+    currentPartnerId = partnerId;
     onFix = coords => {
       if (isMounted()) {
         setPosition(coords);
@@ -253,7 +253,7 @@ export const useBackgroundLocation = (
       onFix = null;
       stop();
     };
-  }, [driverId, isMounted]);
+  }, [partnerId, isMounted]);
 
   return { position };
 };

@@ -1,7 +1,7 @@
 import { apiRequest } from './client';
 
 export interface ReportLocationRequest {
-  driverId: string;
+  partnerId: string;
   latitude: number;
   longitude: number;
 }
@@ -27,7 +27,7 @@ export const locationApi = {//TODO: remove mock
     return apiRequest<ReportLocationResponse>('/api/driver/location', {
       method: 'POST',
       body: JSON.stringify({
-        driverId: payload.driverId,
+        partnerId: payload.partnerId,
         latitude: payload.latitude,
         longitude: payload.longitude,
       } satisfies ReportLocationRequest),

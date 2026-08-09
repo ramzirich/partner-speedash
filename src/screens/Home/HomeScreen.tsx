@@ -108,7 +108,7 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const isMounted = useIsMounted();
   const dispatch = useAppDispatch();
   const firstName = useAppSelector(state => state.auth.user?.firstName);
-  const driverId = useAppSelector(state => state.auth.user?.id);
+  const partnerId = useAppSelector(state => state.auth.user?.id);
   const refreshToken = useAppSelector(state => state.auth.refreshToken);
   const animated = useHomeAnimation();
 
@@ -119,18 +119,18 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const greeting = getGreeting();
   const displayName = firstName ? capitalize(firstName) : 'Driver';
 
-  // The socket follows the session: it dials for a signed-in driver and closes
+  // The socket follows the session: it dials for a signed-in partner and closes
   // on sign-out. Declared before the two hooks that use it so the connection is
   // up before either subscribes or emits.
-  useDriverSocket(driverId);
-  const { position } = useBackgroundLocation(driverId);
+  useDriverSocket(partnerId);
+  const { position } = useBackgroundLocation(partnerId);
   const {
     offers,
     offerIds,
     alert: offerAlert,
     dismissAlert,
     notificationSeq,
-  } = useDriverOffers(driverId);
+  } = useDriverOffers(partnerId);
   const [range, setRange] = useState<DateRange>(defaultRange);
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
@@ -273,8 +273,8 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
    */
   const handleAdvanceStatus = useCallback(
     async (order: Order, next: OrderProgress): Promise<void> => {
-      if (!driverId) {
-        setOrdersError('We could not identify your driver account.');
+      if (!partnerId) {
+        setOrdersError('We could not identify your partner account.');
         return;
       }
       setUpdatingOrderId(order.id);
@@ -282,7 +282,7 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
       try {
         const updated = await ordersApi.updateStatus({
           orderId: order.id,
-          driverId,
+          partnerId,
           newStatus: next,
         });
         if (!isMounted()) {
@@ -309,7 +309,7 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
         }
       }
     },
-    [driverId, isMounted, refreshOrders],
+    [partnerId, isMounted, refreshOrders],
   );
 
   /**

@@ -10,9 +10,9 @@ import type { OrderDocument } from './orders.api';
  * assignment never appears in an HTTP response. It arrives here instead.
  *
  * Addressing model (backend contract):
- *  - **Driver notifications** are emitted as a per-driver EVENT NAME
- *    (`notification:driver:<driverId>`), not a room — so a driver only ever
- *    receives its own offers, and no join is required.
+ *  - **Notifications** are emitted as a per-partner EVENT NAME
+ *    (`notification:partner:<partnerId>`), not a room — so a partner only ever
+ *    receives its own notifications, and no join is required.
  *  - **Order updates** come from a room that must be joined explicitly
  *    (`joinOrderRoom`). Room membership dies with the socket, so every room is
  *    re-joined on reconnect (see the `connect` handler below).
@@ -40,15 +40,15 @@ export interface DriverNotification {
 export type DriverDeliveryState = 'AVAILABLE' | 'BUSY';
 
 export interface DriverLocationUpdate {
-  driverId: string;
+  partnerId: string;
   /** GeoJSON order: [longitude, latitude] — NOT [lat, lng]. */
   coordinates: [number, number];
   deliveryState: DriverDeliveryState;
 }
 
-/** Per-driver notification event name. */
-export const driverNotificationEvent = (driverId: string): string =>
-  `notification:driver:${driverId}`;
+/** Per-partner notification event name. */
+export const driverNotificationEvent = (partnerId: string): string =>
+  `notification:partner:${partnerId}`;
 
 // --- Connection -------------------------------------------------------------
 
@@ -93,7 +93,7 @@ export const connectSocket = (): Socket => {
   return socket;
 };
 
-/** Full teardown — used on sign-out so the next driver starts clean. */
+/** Full teardown — used on sign-out so the next partner starts clean. */
 export const disconnectSocket = (): void => {
   joinedOrderRooms.clear();
   if (socket) {
@@ -134,14 +134,14 @@ const isOrderDocument = (value: unknown): value is OrderDocument =>
 // --- Subscriptions ----------------------------------------------------------
 
 /**
- * Listen for this driver's offers/assignments. Returns the unsubscribe function
- * so callers can release it in an effect cleanup (§5).
+ * Listen for this partner's order notifications. Returns the unsubscribe
+ * function so callers can release it in an effect cleanup (§5).
  */
 export const onDriverNotification = (
-  driverId: string,
+  partnerId: string,
   handler: (notification: DriverNotification) => void,
 ): (() => void) => {
-  const event = driverNotificationEvent(driverId);
+  const event = driverNotificationEvent(partnerId);
   const listener = (payload: unknown): void => {
     if (isDriverNotification(payload)) {
       handler(payload);
@@ -188,10 +188,10 @@ export const forgetOrderRoom = (orderId: string): void => {
 };
 
 /**
- * Report the driver's position on whatever connection is already open.
+ * Report the signed-in user's position on whatever connection is already open.
  *
  * Deliberately reads the singleton instead of calling `connectSocket()`: the
- * connection belongs to `useDriverSocket` and exists only while a driver is
+ * connection belongs to `useDriverSocket` and exists only while a partner is
  * signed in, so a fix must never be the thing that dials the server.
  *
  * Dropped while disconnected rather than buffered — socket.io would otherwise

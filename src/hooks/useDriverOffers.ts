@@ -10,11 +10,11 @@ import type { DriverNotification, OrderDocument } from '../api';
 import type { Order, OrderStatus } from '../components/OrderCard';
 
 /**
- * Live order offers pushed to this driver over Socket.IO.
+ * Live order offers pushed to this partner over Socket.IO.
  *
- * The backend addresses drivers by a per-driver EVENT NAME
- * (`notification:driver:<driverId>`), so this hook only ever sees offers meant
- * for the signed-in driver — no filtering on our side, and no room to join.
+ * The backend addresses accounts by a per-partner EVENT NAME
+ * (`notification:partner:<partnerId>`), so this hook only ever sees offers meant
+ * for the signed-in partner — no filtering on our side, and no room to join.
  *
  * What arrives is just `{ orderId, message, type, timeout }` — no pickup /
  * drop-off / fee. So each offer starts as a card built from the notification
@@ -74,7 +74,7 @@ const offerCard = (
 });
 
 export const useDriverOffers = (
-  driverId: string | undefined,
+  partnerId: string | undefined,
 ): DriverOffers => {
   const [entries, setEntries] = useState<OfferEntry[]>([]);
   const [alert, setAlert] = useState<DriverAlert | null>(null);
@@ -109,15 +109,15 @@ export const useDriverOffers = (
    * something to keep showing.
    */
   useEffect(() => {
-    if (driverId) {
+    if (partnerId) {
       return;
     }
     setEntries(prev => (prev.length > 0 ? [] : prev));
     setAlert(null);
-  }, [driverId]);
+  }, [partnerId]);
 
   useEffect(() => {
-    if (!driverId) {
+    if (!partnerId) {
       return;
     }
     // The Map instance is created once by useRef, so capturing it here is safe
@@ -189,7 +189,7 @@ export const useDriverOffers = (
       );
     };
 
-    const offNotification = onDriverNotification(driverId, handleNotification);
+    const offNotification = onDriverNotification(partnerId, handleNotification);
     const offOrderUpdate = onOrderUpdate(handleOrderUpdate);
 
     return () => {
@@ -200,7 +200,7 @@ export const useDriverOffers = (
       // The connection itself is not ours to close — `useDriverSocket` owns it,
       // and signing out is what tears it down.
     };
-  }, [driverId, clearTimer, drop]);
+  }, [partnerId, clearTimer, drop]);
 
   const dismissAlert = useCallback(() => setAlert(null), []);
 

@@ -457,7 +457,7 @@ const buildQuery = (params: ListOrdersParams): string => {
 
 export interface UpdateOrderStatusRequest {
   orderId: string;
-  driverId: string;
+  partnerId: string;
   newStatus: OrderProgress;
 }
 
@@ -525,7 +525,7 @@ export const ordersApi = {
 
   async updateStatus({
     orderId,
-    driverId,
+    partnerId,
     newStatus,
   }: UpdateOrderStatusRequest): Promise<Order | null> {
     if (ENV.useMockApi) {
@@ -540,7 +540,7 @@ export const ordersApi = {
     }
     const res = await apiRequest<unknown>(statusUrl(orderId), {
       method: 'PATCH',
-      body: JSON.stringify({ driverId, newStatus }),
+      body: JSON.stringify({ partnerId, newStatus }),
     });
     const doc = pickDocument(res);
     return doc ? fromOrderDocument(doc) : null;
