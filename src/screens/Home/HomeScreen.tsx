@@ -8,7 +8,6 @@ import React, {
 import {
   ActivityIndicator,
   Animated,
-  Modal,
   Pressable,
   PressableStateCallbackType,
   StatusBar,
@@ -22,13 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppDialog } from '../../components/AppDialog';
 import { addDays, todayDateString } from '../../components/CalendarDatePicker';
 import type { DateRange } from '../../components/CalendarDatePicker';
-import { MotoLoader } from '../../components/MotoLoader';
-import {
-  Order,
-  OrderProgress,
-  OrderStatus,
-  orderStepName,
-} from '../../components/OrderCard';
+import type { Order } from '../../components/OrderCard';
 import { authApi, ordersApi, toApiError, toDayUnix } from '../../api';
 import { useDriverSocket } from '../../hooks/useDriverSocket';
 import { useIsMounted } from '../../hooks/useIsMounted';
@@ -56,15 +49,6 @@ const defaultRange = (): DateRange => {
   const today = todayDateString();
   return { start: addDays(today, -1), end: today };
 };
-
-/** Mock processing time for accept/decline (replace with the API call). */
-const PROCESS_DELAY_MS = 1800;
-
-/** Sign-in's waiting overlay, worded for the step just picked. */
-const statusWaitLabel = (next: OrderProgress): string =>
-  next === 'DELIVERED'
-    ? 'Marking this order delivered…'
-    : `Moving you to ${orderStepName(next).toLowerCase()}…`;
 
 const TABS: ReadonlyArray<{
   key: ContentKey;
@@ -129,22 +113,12 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState<string | null>(null);
-  const [processingLabel, setProcessingLabel] = useState<string | null>(null);
-  /** Kept apart from `processingLabel` so accept/decline's timer can't clear it. */
-  const [statusLabel, setStatusLabel] = useState<string | null>(null);
   const [focusOrderId] = useState<string | null>(null);
-  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The order the confirm dialog is asking about, if any. */
+  const [pendingCancel, setPendingCancel] = useState<Order | null>(null);
+  const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState('');
   const ordersRequestRef = useRef(0);
-
-  useEffect(
-    () => () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    },
-    [],
-  );
 
   /**
    * `POST /api/order/history` for the selected days — the one fetch behind both
@@ -194,81 +168,60 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     refreshOrders(true);
   }, [refreshOrders]);
 
-  const resolveOrder = useCallback(
-    (id: string, nextStatus: OrderStatus, label: string) => {
-      setProcessingLabel(label);
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-      // Stand-in for the real accept/decline API call.
-      timerRef.current = setTimeout(() => {
-        if (!isMounted()) {
-          return;
-        }
-        setOrders(prev =>
-          prev.map(o => (o.id === id ? { ...o, status: nextStatus } : o)),
-        );
-        setProcessingLabel(null);
-        refreshOrders(true);
-      }, PROCESS_DELAY_MS);
-    },
-    [isMounted, refreshOrders],
+  /** Tapping Cancel only opens the dialog — nothing is sent until it's confirmed. */
+  const handleCancelRequest = useCallback(
+    (order: Order) => setPendingCancel(order),
+    [],
   );
 
-  const handleAccept = useCallback(
-    (order: Order) => resolveOrder(order.id, 'on_delivery', 'Accepting order…'),
-    [resolveOrder],
-  );
-
-  const handleDecline = useCallback(
-    (order: Order) => resolveOrder(order.id, 'rejected', 'Rejecting order…'),
-    [resolveOrder],
-  );
+  const handleCancelDismiss = useCallback(() => setPendingCancel(null), []);
 
   /**
-   * Advance a live order one step (ASSIGNED → HEADING_TO_PARTNER → AT_PICKUP →
-   * HEADING_TO_CUSTOMER → DELIVERED). The card only ever offers the one legal
-   * move, so this forwards it to `PATCH /orders/:id/status` and swaps in
-   * whatever the server says the order now is. The overlay covers the whole
-   * round trip — the PATCH *and* the refetch behind it.
+   * `PATCH /orders/:id/status` with `newStatus: 'CANCELED'`. The card only
+   * offers this while the parcel is still in nobody's hands, and the gateway
+   * refuses a delivered or already canceled order, so a rejection here is worth
+   * showing.
    */
-  const handleAdvanceStatus = useCallback(
-    async (order: Order, next: OrderProgress): Promise<void> => {
-      if (!partnerId) {
-        setOrdersError('We could not identify your partner account.');
+  const handleCancelConfirm = useCallback(async (): Promise<void> => {
+    const order = pendingCancel;
+    if (!order) {
+      return;
+    }
+    if (!partnerId) {
+      setPendingCancel(null);
+      setCancelError('We could not identify your partner account.');
+      return;
+    }
+    setCancelingOrderId(order.id);
+    try {
+      const updated = await ordersApi.cancel({
+        orderId: order.id,
+        partnerId,
+      });
+      if (!isMounted()) {
         return;
       }
-      setUpdatingOrderId(order.id);
-      setStatusLabel(statusWaitLabel(next));
-      try {
-        const updated = await ordersApi.updateStatus({
-          orderId: order.id,
-          partnerId,
-          newStatus: next,
-        });
-        if (!isMounted()) {
-          return;
-        }
-        if (updated) {
-          setOrders(prev => prev.map(o => (o.id === updated.id ? updated : o)));
-        }
-        setOrdersError(null);
-        // The response only covers this order — a silent refetch also picks up
-        // whatever else the transition changed server-side.
-        await refreshOrders(true);
-      } catch (err) {
-        if (isMounted()) {
-          setOrdersError(toApiError(err).userMessage);
-        }
-      } finally {
-        if (isMounted()) {
-          setUpdatingOrderId(null);
-          setStatusLabel(null);
-        }
+      if (updated) {
+        setOrders(prev => prev.map(o => (o.id === updated.id ? updated : o)));
       }
-    },
-    [partnerId, isMounted, refreshOrders],
-  );
+      setOrdersError(null);
+      setPendingCancel(null);
+      // The response only covers this order — a silent refetch also picks up
+      // whatever else the cancellation freed up server-side.
+      await refreshOrders(true);
+    } catch (err) {
+      if (isMounted()) {
+        setPendingCancel(null);
+        setCancelError(toApiError(err).userMessage);
+      }
+    } finally {
+      if (isMounted()) {
+        setCancelingOrderId(null);
+      }
+    }
+  }, [pendingCancel, partnerId, isMounted, refreshOrders]);
+
+  const dismissCancelError = useCallback(() => setCancelError(''), []);
 
   /**
    * The create pane's one line about the history: how many orders were raised
@@ -293,9 +246,6 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
       recentCount === 1 ? 'order' : 'orders'
     } in the last 24 hours`;
   }, [ordersError, ordersLoading, recentCount]);
-
-  /** Whichever wait is in flight owns the overlay; only one runs at a time. */
-  const waitLabel = processingLabel ?? statusLabel;
 
   const handleLogout = useCallback(() => setLogoutVisible(true), []);
 
@@ -327,13 +277,11 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   );
 
   /**
-   * The badge counts everything still on the partner's plate — orders waiting
-   * on a driver *and* deliveries already under way. Only done and rejected
-   * orders drop out of it.
+   * Every order in the fetched range that hasn't been delivered — waiting on a
+   * driver, under way, or called off. Delivered is the only status that drops
+   * out, and the badge shows the exact figure rather than capping at "9+".
    */
-  const openCount = orders.filter(
-    o => o.status !== 'done' && o.status !== 'rejected',
-  ).length;
+  const openCount = orders.filter(o => o.status !== 'done').length;
 
   const headerStyle = useMemo(
     () => [styles.header, animated.header],
@@ -409,12 +357,10 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
             loading={ordersLoading}
             error={ordersError}
             focusOrderId={focusOrderId}
-            updatingOrderId={updatingOrderId}
+            cancelingOrderId={cancelingOrderId}
             range={range}
             onRangeChange={setRange}
-            onAccept={handleAccept}
-            onDecline={handleDecline}
-            onAdvanceStatus={handleAdvanceStatus}
+            onCancel={handleCancelRequest}
           />
         )}
       </View>
@@ -435,16 +381,31 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
         ))}
       </Animated.View>
 
-      {/* Sign-in's rider overlay, reused for anything worth waiting on:
-          accept/decline, and a status change with its refetch. */}
-      <Modal
-        visible={waitLabel !== null}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-      >
-        <MotoLoader visible label={waitLabel ?? ''} />
-      </Modal>
+      <AppDialog
+        visible={pendingCancel !== null}
+        title="Cancel this order?"
+        message={
+          pendingCancel
+            ? `The delivery to ${pendingCancel.dropoff} will be called off. This can't be undone.`
+            : ''
+        }
+        tone="danger"
+        confirmLabel="Cancel order"
+        confirmLoading={cancelingOrderId !== null}
+        onConfirm={handleCancelConfirm}
+        cancelLabel="Keep it"
+        onCancel={handleCancelDismiss}
+        testID="order-cancel-dialog"
+      />
+
+      <AppDialog
+        visible={cancelError !== ''}
+        title="Could not cancel order"
+        message={cancelError}
+        tone="danger"
+        onConfirm={dismissCancelError}
+        testID="order-cancel-error"
+      />
 
       <AppDialog
         visible={logoutVisible}

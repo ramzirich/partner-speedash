@@ -8,12 +8,7 @@ import {
 } from 'react-native';
 import { CalendarDatePicker } from '../../components/CalendarDatePicker';
 import type { DateRange } from '../../components/CalendarDatePicker';
-import {
-  Order,
-  OrderCard,
-  OrderProgress,
-  OrderStatus,
-} from '../../components/OrderCard';
+import { Order, OrderCard, OrderStatus } from '../../components/OrderCard';
 import { colors } from '../../theme';
 import { styles } from './OrdersTab.styles';
 
@@ -22,18 +17,16 @@ export interface OrdersTabProps {
   loading?: boolean;
   error?: string | null;
   /**
-   * Order the driver came here to see (tapped its notification) — scrolled into
-   * view once it exists in the list.
+   * Order the partner came here to see (tapped its notification) — scrolled
+   * into view once it exists in the list.
    */
   focusOrderId?: string | null;
-  /** Order whose status change is in flight — its card shows a busy button. */
-  updatingOrderId?: string | null;
+  /** Order whose cancel is in flight — its card shows a busy button. */
+  cancelingOrderId?: string | null;
   /** Days the list covers. Owned by the screen — it drives the fetch. */
   range: DateRange;
   onRangeChange: (range: DateRange) => void;
-  onAccept: (order: Order) => void;
-  onDecline: (order: Order) => void;
-  onAdvanceStatus: (order: Order, next: OrderProgress) => void;
+  onCancel: (order: Order) => void;
 }
 
 /** Display order: pending first, then on-delivery, then the rest. */
@@ -54,19 +47,17 @@ const sortByStatus = (orders: Order[]): Order[] =>
 
 /**
  * Orders tab: a date picker on top, then the selected day's orders as cards
- * (pending pinned to the top). Orders + accept/decline are owned by the parent.
+ * (pending pinned to the top). Orders + cancelling are owned by the parent.
  */
 const OrdersTabComponent: React.FC<OrdersTabProps> = ({
   orders,
   loading = false,
   error = null,
   focusOrderId = null,
-  updatingOrderId = null,
+  cancelingOrderId = null,
   range,
   onRangeChange,
-  onAccept,
-  onDecline,
-  onAdvanceStatus,
+  onCancel,
 }) => {
   const listRef = useRef<FlatList<Order>>(null);
   /** Order already scrolled to, so a later refetch doesn't yank the list back. */
@@ -102,13 +93,11 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
     ({ item }) => (
       <OrderCard
         order={item}
-        onAccept={onAccept}
-        onDecline={onDecline}
-        onAdvanceStatus={onAdvanceStatus}
-        updating={item.id === updatingOrderId}
+        onCancel={onCancel}
+        canceling={item.id === cancelingOrderId}
       />
     ),
-    [onAccept, onDecline, onAdvanceStatus, updatingOrderId],
+    [onCancel, cancelingOrderId],
   );
 
   const keyExtractor = useCallback((item: Order) => item.id, []);

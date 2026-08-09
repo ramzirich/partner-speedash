@@ -23,13 +23,14 @@ export const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  headerText: {
-    flex: 1,
+  /** Delivery fee over the order id, right-aligned against the status tag. */
+  headerMeta: {
+    alignItems: 'flex-end',
   },
-  partnerName: {
+  amount: {
     ...typography.h2,
-    fontSize: 17,
-    marginTop: 2,
+    fontSize: 18,
+    color: colors.primary,
   },
   label: {
     ...typography.button,
@@ -37,61 +38,13 @@ export const styles = StyleSheet.create({
     letterSpacing: 0.5,
     color: colors.textSecondary,
   },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-  },
-  contactPhone: {
-    ...typography.button,
-    fontSize: 13,
-    color: colors.textPrimary,
-  },
-  // Route.
-  place: {
-    gap: 2,
-  },
-  location: {
-    ...typography.button,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  navigateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 52,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary,
-  },
-  navigateText: {
-    flex: 1,
-  },
-  navigateLabel: {
-    ...typography.button,
-    fontSize: 10,
-    letterSpacing: 0.5,
-    color: colors.onPrimaryWash,
-  },
-  navigateValue: {
-    ...typography.button,
-    fontSize: 14,
-    color: colors.textOnPrimary,
-    marginTop: 2,
-  },
-  note: {
+  orderId: {
     ...typography.body,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    fontWeight: '700',
     color: colors.textSecondary,
   },
+
   // Status tag.
   tag: {
     flexDirection: 'row',
@@ -110,6 +63,79 @@ export const styles = StyleSheet.create({
     ...typography.button,
     fontSize: 11,
   },
+
+  // Drop-off.
+  place: {
+    gap: 2,
+  },
+  location: {
+    ...typography.button,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  /** The same block, in a tint, when there's a maps link behind it. */
+  navigateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.primaryWash,
+  },
+  navigateText: {
+    flex: 1,
+    gap: 2,
+  },
+  navigateValue: {
+    ...typography.button,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+
+  note: {
+    ...typography.body,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
+  },
+
+  // Driver — same shape as the customer row below it.
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  contactLabel: {
+    ...typography.button,
+    fontSize: 10,
+    letterSpacing: 0.5,
+    color: colors.textSecondary,
+  },
+  contactAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    gap: spacing.xs,
+  },
+  contactName: {
+    ...typography.button,
+    fontSize: 13,
+    color: colors.textSecondary,
+    flexShrink: 1,
+  },
+  contactValue: {
+    ...typography.button,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+
+  // Customer.
   customerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -139,35 +165,7 @@ export const styles = StyleSheet.create({
     // the brand colour stays on the icon beside it.
     color: colors.textPrimary,
   },
-  // Bottom row: order id ↔ delivery fee.
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    gap: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  footerText: {
-    flex: 1,
-  },
-  footerFee: {
-    alignItems: 'flex-end',
-  },
-  orderId: {
-    ...typography.body,
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  amount: {
-    ...typography.h2,
-    fontSize: 18,
-    color: colors.primary,
-    marginTop: 2,
-  },
+
   pressed: {
     opacity: 0.85,
   },

@@ -13,8 +13,6 @@ import type { ContentKey } from './types';
 import { styles } from './TabBarButton.styles';
 
 const ICON_SIZE = 22;
-/** Anything past this is shown as "9+" so the badge keeps its shape. */
-const BADGE_MAX = 9;
 
 export interface TabBarButtonProps {
   tabKey: ContentKey;
@@ -70,9 +68,7 @@ const TabBarButtonComponent: React.FC<TabBarButtonProps> = ({
           />
           {badge > 0 ? (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {badge > BADGE_MAX ? `${BADGE_MAX}+` : badge}
-              </Text>
+              <Text style={styles.badgeText}>{badge}</Text>
             </View>
           ) : null}
         </View>

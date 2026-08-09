@@ -1,4 +1,4 @@
-export { OrderCard, orderStepName } from './OrderCard';
+export { OrderCard } from './OrderCard';
 export type {
   Order,
   OrderCardProps,

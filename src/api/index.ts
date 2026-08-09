@@ -53,6 +53,8 @@ export type {
   OrderHistoryRequest,
   OrderHistoryResponse,
   UpdateOrderStatusRequest,
+  OrderStatusUpdate,
+  CancelOrderRequest,
   CreateOrderRequest,
 } from './orders.api';
 export type {

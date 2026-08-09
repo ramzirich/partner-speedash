@@ -108,6 +108,12 @@ const CONTACTABLE_STATUSES: ReadonlySet<string> = new Set([
   'ON_WAY',
 ]);
 
+const CANCELLABLE_STATUSES: ReadonlySet<string> = new Set([
+  'PENDING',
+  'ASSIGNED',
+  'HEADING_TO_PARTNER',
+]);
+
 const toProgress = (status: string): OrderProgress | undefined => {
   switch (status) {
     case 'PENDING':
@@ -253,7 +259,8 @@ const toDecimalAmount = (
   return toAmount(fee.$numberDecimal);
 };
 
-const MAPS_QUERY = /[?&]query=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/;
+/** Both link shapes are in the data: `?q=lat,lng` and `?api=1&query=lat,lng`. */
+const MAPS_QUERY = /[?&](?:q|query)=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/;
 
 const fromMapsLink = (
   link: string | undefined,
@@ -294,33 +301,42 @@ const describePlace = (place: OrderPlace | undefined): string => {
   return '—';
 };
 
-const toPartner = (
-  partner: OrderParty | string | null | undefined,
+/**
+ * A populated `partnerId`/`driverId` → the card's contact model. Both sides
+ * come back in the same shape: a business name for a partner, a first/last pair
+ * for a driver, and a `phoneNumber` on either when the payload carries one.
+ * A bare id (unpopulated) has nothing to show, so it maps to undefined.
+ */
+const toParty = (
+  party: OrderParty | string | null | undefined,
 ): OrderPartner | undefined => {
-  if (!partner || typeof partner === 'string') {
+  if (!party || typeof party === 'string') {
     return undefined;
   }
   const name =
-    partner.businessName?.trim() ||
-    [partner.firstName, partner.lastName].filter(Boolean).join(' ').trim();
+    party.businessName?.trim() ||
+    [party.firstName, party.lastName].filter(Boolean).join(' ').trim();
   if (!name) {
     return undefined;
   }
   return {
-    id: partner._id,
+    id: party._id,
     name,
-    phone: partner.phoneNumber?.trim() || undefined,
+    phone: party.phoneNumber?.trim() || undefined,
   };
 };
 
 /** Raw order document → the UI card model. */
 export const fromOrderDocument = (doc: OrderDocument): Order => {
-  const partner = toPartner(doc.partnerId);
+  const partner = toParty(doc.partnerId);
   const contactable = CONTACTABLE_STATUSES.has(doc.status);
   return {
     id: doc._id,
     pickup: describePlace(doc.pickupLocation),
     dropoff: describePlace(doc.dropoffLocation),
+    // Straight off the document: these orders often carry a link and no
+    // coordinates, and the link is the only way to see where "hamra" is.
+    dropoffLink: doc.dropoffLocation?.googleMapsLink?.trim() || undefined,
     amount: toDecimalAmount(doc.deliveryFee),
     currency: 'USD',
     status: toUiStatus(doc.status),
@@ -328,15 +344,19 @@ export const fromOrderDocument = (doc: OrderDocument): Order => {
     // The partner stays named on a closed order; only its number goes away.
     partner:
       partner && !contactable ? { ...partner, phone: undefined } : partner,
+    // Whoever is carrying it, once one has been assigned. Their number only
+    // appears when the payload populates it.
+    driver: toParty(doc.driverId),
     // Only while the pickup is still ahead of the driver — see NAVIGABLE_STATUSES.
     pickupCoordinates: NAVIGABLE_STATUSES.has(doc.status)
       ? toCoordinates(doc.pickupLocation)
       : undefined,
-    customerPhone: ACTIVE_STATUSES.has(doc.status)
-      ? doc.customerPhoneNumber ?? undefined
-      : undefined,
+    // It's the partner's own customer, so the number is theirs to see whatever
+    // state the order is in.
+    customerPhone: doc.customerPhoneNumber ?? undefined,
     note: doc.note ?? undefined,
     createdAt: toEpochMs(doc.createdAt),
+    cancellable: CANCELLABLE_STATUSES.has(doc.status),
   };
 };
 
@@ -462,10 +482,18 @@ const buildQuery = (params: ListOrdersParams): string => {
 
 // --- Status transitions ------------------------------------------------------
 
+/** Every status the app can ask for — cancelling is one of them. */
+export type OrderStatusUpdate = OrderProgress | 'CANCELED';
+
 export interface UpdateOrderStatusRequest {
   orderId: string;
   partnerId: string;
-  newStatus: OrderProgress;
+  newStatus: OrderStatusUpdate;
+}
+
+export interface CancelOrderRequest {
+  orderId: string;
+  partnerId: string;
 }
 
 /**
@@ -490,6 +518,35 @@ const isOrderDocumentLike = (value: unknown): value is OrderDocument =>
   typeof value === 'object' &&
   value !== null &&
   typeof (value as OrderDocument)._id === 'string';
+
+/**
+ * `PATCH /orders/:id/status` with `{ partnerId, newStatus }`. `apiRequest`
+ * attaches the `Authorization: Bearer <accessToken>` header, the timeout and
+ * the refresh-on-401 retry. Both the status move and the cancellation go
+ * through here — they're the same call with a different target status.
+ */
+const patchStatus = async (
+  orderId: string,
+  partnerId: string,
+  newStatus: OrderStatusUpdate,
+): Promise<Order | null> => {
+  if (ENV.useMockApi) {
+    await delay(MOCK_LATENCY_MS);
+    const doc = MOCK_ORDERS.find(order => order._id === orderId);
+    if (!doc) {
+      return null;
+    }
+    // Mutated so a later `history()` reflects the move, like the server would.
+    doc.status = newStatus;
+    return fromOrderDocument(doc);
+  }
+  const res = await apiRequest<unknown>(statusUrl(orderId), {
+    method: 'PATCH',
+    body: JSON.stringify({ partnerId, newStatus }),
+  });
+  const doc = pickDocument(res);
+  return doc ? fromOrderDocument(doc) : null;
+};
 
 const pickDocument = (res: unknown): OrderDocument | undefined => {
   if (isOrderDocumentLike(res)) {
@@ -564,26 +621,23 @@ export const ordersApi = {
     return (res.data ?? []).map(fromOrderDocument);
   },
 
+  /**
+   * Call an order off — the same status route, asked for `CANCELED`. The button
+   * is only offered while the parcel is in nobody's hands (CANCELLABLE_STATUSES)
+   * and the gateway refuses anything already delivered or canceled.
+   */
+  async cancel({
+    orderId,
+    partnerId,
+  }: CancelOrderRequest): Promise<Order | null> {
+    return patchStatus(orderId, partnerId, 'CANCELED');
+  },
+
   async updateStatus({
     orderId,
     partnerId,
     newStatus,
   }: UpdateOrderStatusRequest): Promise<Order | null> {
-    if (ENV.useMockApi) {
-      await delay(MOCK_LATENCY_MS);
-      const doc = MOCK_ORDERS.find(order => order._id === orderId);
-      if (!doc) {
-        return null;
-      }
-      // Mutated so a later `list()` reflects the move, like the server would.
-      doc.status = newStatus;
-      return fromOrderDocument(doc);
-    }
-    const res = await apiRequest<unknown>(statusUrl(orderId), {
-      method: 'PATCH',
-      body: JSON.stringify({ partnerId, newStatus }),
-    });
-    const doc = pickDocument(res);
-    return doc ? fromOrderDocument(doc) : null;
+    return patchStatus(orderId, partnerId, newStatus);
   },
 };
