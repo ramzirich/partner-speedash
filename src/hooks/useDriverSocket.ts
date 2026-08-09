@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { connectSocket, disconnectSocket } from '../api';
+import { acquireSocket, disconnectSocket, releaseSocket } from '../api';
 
 /**
  * Owns the lifetime of the Socket.IO connection.
@@ -22,11 +22,11 @@ export const useDriverSocket = (partnerId: string | undefined): void => {
       disconnectSocket();
       return;
     }
-    connectSocket();
+    acquireSocket();
     // Sign-out unmounts the screen (`navigation.reset('Landing')`), so this
     // cleanup is also the sign-out teardown — the next partner to sign in can
     // never inherit this partner's socket or its subscriptions. Keyed on
     // `partnerId`, so an account switch redials rather than reusing it.
-    return () => disconnectSocket();
+    return () => releaseSocket();
   }, [partnerId]);
 };

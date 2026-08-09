@@ -3,6 +3,7 @@ import { Linking, Pressable, Text, View } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { AppButton } from '../AppButton';
 import { colors } from '../../theme';
+import { openWhatsApp } from '../../utils/whatsapp';
 import { styles } from './OrderCard.styles';
 
 export type OrderStatus = 'pending' | 'on_delivery' | 'done' | 'rejected';
@@ -67,26 +68,6 @@ const ICON_SIZE = 14;
 
 const formatMoney = (amount: number | undefined, currency: string): string =>
   amount == null ? '—' : `${currency === 'USD' ? '$' : ''}${amount.toFixed(2)}`;
-
-/**
- * Open a chat with this number: the installed app when there is one, `wa.me` in
- * the browser otherwise. Shared by both contact rows — driver and customer are
- * reached the same way.
- */
-const openWhatsApp = async (phone: string | undefined): Promise<void> => {
-  const number = phone?.replace(/\D/g, '');
-  if (!number) {
-    return;
-  }
-  const appUrl = `whatsapp://send?phone=${number}`;
-  const webUrl = `https://wa.me/${number}`;
-  try {
-    const canOpenApp = await Linking.canOpenURL(appUrl);
-    await Linking.openURL(canOpenApp ? appUrl : webUrl);
-  } catch {
-    // No WhatsApp and no browser — there is nothing left to fall back to.
-  }
-};
 
 export interface OrderCardProps {
   order: Order;

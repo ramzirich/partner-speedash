@@ -23,8 +23,16 @@ import { addDays, todayDateString } from '../../components/CalendarDatePicker';
 import type { DateRange } from '../../components/CalendarDatePicker';
 import type { Order } from '../../components/OrderCard';
 import { authApi, ordersApi, toApiError, toDayUnix } from '../../api';
+import type { OrderDocument, OrderDocumentStatus } from '../../api';
 import { useDriverSocket } from '../../hooks/useDriverSocket';
 import { useIsMounted } from '../../hooks/useIsMounted';
+import { useOrdersRealtime } from '../../hooks/useOrdersRealtime';
+import {
+  initOrderNotifications,
+  notifyOrderStatus,
+  onOrderNotificationPress,
+  startNotificationPressRouting,
+} from '../../services/notifications';
 import { useAppDispatch, useAppSelector, logout } from '../../store';
 import { ScreenProps } from '../../navigation';
 import { colors } from '../../theme';
@@ -109,11 +117,18 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   // on sign-out. Nothing subscribes to it yet.
   useDriverSocket(partnerId);
 
+  // Ask once, on the way in — Android 13+ won't post anything without the
+  // runtime grant, and asking at delivery time would be too late to show it.
+  useEffect(() => {
+    initOrderNotifications();
+    startNotificationPressRouting();
+  }, []);
+
   const [range, setRange] = useState<DateRange>(defaultRange);
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState<string | null>(null);
-  const [focusOrderId] = useState<string | null>(null);
+  const [focusOrderId, setFocusOrderId] = useState<string | null>(null);
   /** The order the confirm dialog is asking about, if any. */
   const [pendingCancel, setPendingCancel] = useState<Order | null>(null);
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
@@ -167,6 +182,73 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const handleOrderCreated = useCallback(() => {
     refreshOrders(true);
   }, [refreshOrders]);
+
+  /**
+   * A tapped notification opens the order it was about. The target may predate
+   * this screen — a press from a killed app is recorded before React mounts —
+   * so subscribing is also what collects anything already waiting.
+   */
+  useEffect(() => {
+    return onOrderNotificationPress(orderId => {
+      setActiveKey('orders');
+      setFocusOrderId(orderId);
+      // The order moved while we were away; the list on screen predates it.
+      refreshOrders(true);
+    });
+  }, [refreshOrders]);
+
+  /**
+   * Last status seen per order, so the same transition arriving twice — a
+   * socket push and the history refetch behind it — only notifies once.
+   */
+  const announcedRef = useRef<Map<string, string>>(new Map());
+
+  /**
+   * Delivery raises a system notification; every other transition is silent —
+   * it's already visible on the card and in the tracker.
+   */
+  const announceStatus = useCallback((order: OrderDocument): void => {
+    const status = order.status as OrderDocumentStatus;
+    if (announcedRef.current.get(order._id) === status) {
+      return;
+    }
+    announcedRef.current.set(order._id, status);
+
+    if (status === 'DELIVERED') {
+      notifyOrderStatus(order, status);
+    }
+  }, []);
+
+  const handleTrackedStatusChange = useCallback(
+    (_status: OrderDocumentStatus, order: OrderDocument) => {
+      refreshOrders(true);
+      announceStatus(order);
+    },
+    [refreshOrders, announceStatus],
+  );
+
+  /** Every order on screen that can still move — the rooms worth joining. */
+  const liveOrderIds = useMemo(
+    () =>
+      orders
+        .filter(order => order.status !== 'done' && order.status !== 'rejected')
+        .map(order => order.id),
+    [orders],
+  );
+
+  const handleLiveOrder = useCallback(
+    (updated: Order, doc: OrderDocument) => {
+      setOrders(prev =>
+        prev.some(order => order.id === updated.id)
+          ? prev.map(order => (order.id === updated.id ? updated : order))
+          : prev,
+      );
+      announceStatus(doc);
+    },
+    [announceStatus],
+  );
+
+  useOrdersRealtime(liveOrderIds, handleLiveOrder);
 
   /** Tapping Cancel only opens the dialog — nothing is sent until it's confirmed. */
   const handleCancelRequest = useCallback(
@@ -350,6 +432,7 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
             summary={ordersSummary}
             summaryIsError={ordersError !== null}
             onCreated={handleOrderCreated}
+            onTrackedStatusChange={handleTrackedStatusChange}
           />
         ) : (
           <OrdersTab

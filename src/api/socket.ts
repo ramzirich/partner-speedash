@@ -46,41 +46,71 @@ export interface DriverLocationUpdate {
   deliveryState: DriverDeliveryState;
 }
 
-/** Per-partner notification event name. */
-export const driverNotificationEvent = (partnerId: string): string =>
-  `notification:partner:${partnerId}`;
+export type DriverNotificationEvent = `notification:partner:${string}`;
+
+export const driverNotificationEvent = (
+  partnerId: string,
+): DriverNotificationEvent => `notification:partner:${partnerId}`;
+
+export interface ServerToClientEvents {
+  orderUpdate: (order: OrderDocument) => void;
+  [event: `notification:partner:${string}`]: (
+    notification: DriverNotification,
+  ) => void;
+}
+
+export interface ClientToServerEvents {
+  joinOrderRoom: (payload: { orderId: string }) => void;
+}
+
+export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 // --- Connection -------------------------------------------------------------
 
-let socket: Socket | null = null;
+let socket: AppSocket | null = null;
 
-/** Order rooms joined so far; re-emitted after every reconnect. */
-const joinedOrderRooms = new Set<string>();
+let subscribers = 0;
+
+/** Order rooms joined so far, by subscriber count; re-emitted on reconnect. */
+const joinedOrderRooms = new Map<string, number>();
+
+const statusListeners = new Set<(connected: boolean) => void>();
+
+const publishStatus = (connected: boolean): void => {
+  statusListeners.forEach(listener => listener(connected));
+};
 
 const handleConnect = (): void => {
   // Rooms are per-socket: a reconnect starts with zero membership, so anything
   // we were tracking has to be re-joined or updates silently stop arriving.
-  joinedOrderRooms.forEach(orderId => {
+  joinedOrderRooms.forEach((_count, orderId) => {
     socket?.emit('joinOrderRoom', { orderId });
   });
+  publishStatus(true);
   if (__DEV__) {
     console.log('[socket] connected');
   }
+};
+
+const handleDisconnect = (): void => {
+  publishStatus(false);
 };
 
 /**
  * Lazily create the singleton. `transports: ['websocket']` skips the XHR-polling
  * handshake, which is the transport that misbehaves in React Native.
  */
-export const connectSocket = (): Socket => {
+export const connectSocket = (): AppSocket => {
   if (!socket) {
     socket = io(ENV.socketUrl, {
       transports: ['websocket'],
+      autoConnect: false,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
     });
     socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
     socket.on('connect_error', (err: Error) => {
       if (__DEV__) {
         console.log(`[socket] connect error: ${err.message}`);
@@ -93,14 +123,46 @@ export const connectSocket = (): Socket => {
   return socket;
 };
 
+export const acquireSocket = (): AppSocket => {
+  subscribers += 1;
+  return connectSocket();
+};
+
+export const releaseSocket = (): void => {
+  subscribers = Math.max(0, subscribers - 1);
+  if (subscribers === 0) {
+    disconnectSocket();
+  }
+};
+
+export const isSocketConnected = (): boolean => socket?.connected === true;
+
+export const onSocketStatus = (
+  handler: (connected: boolean) => void,
+): (() => void) => {
+  statusListeners.add(handler);
+  handler(isSocketConnected());
+  return () => {
+    statusListeners.delete(handler);
+  };
+};
+
+export const resyncSocket = (): void => {
+  if (socket && !socket.connected) {
+    socket.connect();
+  }
+};
+
 /** Full teardown — used on sign-out so the next partner starts clean. */
 export const disconnectSocket = (): void => {
   joinedOrderRooms.clear();
+  subscribers = 0;
   if (socket) {
     socket.removeAllListeners();
     socket.disconnect();
     socket = null;
   }
+  publishStatus(false);
 };
 
 // --- Payload guards ---------------------------------------------------------
@@ -131,6 +193,26 @@ const isDriverNotification = (
 const isOrderDocument = (value: unknown): value is OrderDocument =>
   isRecord(value) && typeof value._id === 'string' && value._id.length > 0;
 
+/**
+ * The gateway returns order documents bare on some routes and wrapped on
+ * others, so accept either rather than silently dropping a wrapped push.
+ */
+const toOrderDocument = (value: unknown): OrderDocument | null => {
+  if (isOrderDocument(value)) {
+    return value;
+  }
+  if (isRecord(value)) {
+    const { data, order } = value;
+    if (isOrderDocument(data)) {
+      return data;
+    }
+    if (isOrderDocument(order)) {
+      return order;
+    }
+  }
+  return null;
+};
+
 // --- Subscriptions ----------------------------------------------------------
 
 /**
@@ -142,7 +224,7 @@ export const onDriverNotification = (
   handler: (notification: DriverNotification) => void,
 ): (() => void) => {
   const event = driverNotificationEvent(partnerId);
-  const listener = (payload: unknown): void => {
+  const listener = (payload: DriverNotification): void => {
     if (isDriverNotification(payload)) {
       handler(payload);
     } else if (__DEV__) {
@@ -160,9 +242,16 @@ export const onDriverNotification = (
 export const onOrderUpdate = (
   handler: (order: OrderDocument) => void,
 ): (() => void) => {
-  const listener = (payload: unknown): void => {
-    if (isOrderDocument(payload)) {
-      handler(payload);
+  const listener = (payload: OrderDocument): void => {
+    const doc = toOrderDocument(payload);
+    if (__DEV__) {
+      console.log(
+        `[socket] orderUpdate ${doc ? `${doc._id} → ${doc.status}` : 'DROPPED'}`,
+        doc ? '' : JSON.stringify(payload)?.slice(0, 200),
+      );
+    }
+    if (doc) {
+      handler(doc);
     }
   };
   const current = connectSocket();
@@ -178,13 +267,25 @@ export const onOrderUpdate = (
  * so treat the first payload we see as an update, never as initial state.
  */
 export const joinOrderRoom = (orderId: string): void => {
-  joinedOrderRooms.add(orderId);
+  joinedOrderRooms.set(orderId, (joinedOrderRooms.get(orderId) ?? 0) + 1);
   connectSocket().emit('joinOrderRoom', { orderId });
+  if (__DEV__) {
+    console.log(`[socket] joinOrderRoom ${orderId}`);
+  }
 };
 
-/** Stop tracking a room locally (no server-side leave event exists yet). */
+/**
+ * Stop tracking a room locally (no server-side leave event exists yet).
+ * Refcounted: the room is only dropped once every subscriber has let go, so one
+ * screen unmounting can't stop another's updates from being re-joined.
+ */
 export const forgetOrderRoom = (orderId: string): void => {
-  joinedOrderRooms.delete(orderId);
+  const remaining = (joinedOrderRooms.get(orderId) ?? 0) - 1;
+  if (remaining > 0) {
+    joinedOrderRooms.set(orderId, remaining);
+  } else {
+    joinedOrderRooms.delete(orderId);
+  }
 };
 
 /**
@@ -201,5 +302,9 @@ export const emitDriverLocation = (update: DriverLocationUpdate): void => {
   if (!socket?.connected) {
     return;
   }
-  socket.emit('updateLocation', update);
+  const driverChannel = socket as unknown as Socket<
+    ServerToClientEvents,
+    { updateLocation: (payload: DriverLocationUpdate) => void }
+  >;
+  driverChannel.emit('updateLocation', update);
 };

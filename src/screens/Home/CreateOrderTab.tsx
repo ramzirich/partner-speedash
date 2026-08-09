@@ -20,10 +20,13 @@ import { AppDialog } from '../../components/AppDialog';
 import { AppTextField } from '../../components/AppTextField';
 import { BrandBackdrop } from '../../components/BrandBackdrop';
 import { InlineAlert } from '../../components/InlineAlert';
+import { LiveOrderTracker } from '../../components/LiveOrderTracker';
 import { MotoLoader } from '../../components/MotoLoader';
 import { ordersApi, toApiError } from '../../api';
+import type { OrderDocument, OrderDocumentStatus } from '../../api';
 import { useEntranceAnimation } from '../../hooks/useEntranceAnimation';
 import { useIsMounted } from '../../hooks/useIsMounted';
+import { useOrderTracking } from '../../hooks/useOrderTracking';
 import { styles } from './CreateOrderTab.styles';
 
 /** Content groups that stagger in: intro, form, actions. */
@@ -129,6 +132,10 @@ export interface CreateOrderTabProps {
   summaryIsError?: boolean;
   /** A new order landed server-side; the shell refetches on this. */
   onCreated: () => void;
+  onTrackedStatusChange?: (
+    status: OrderDocumentStatus,
+    order: OrderDocument,
+  ) => void;
 }
 
 /**
@@ -143,6 +150,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
   summary,
   summaryIsError = false,
   onCreated,
+  onTrackedStatusChange,
 }) => {
   const isMounted = useIsMounted();
   const entrance = useEntranceAnimation(ENTRANCE_GROUPS);
@@ -158,6 +166,13 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
   const [successMessage, setSuccessMessage] = useState('');
   const [errorContent, setErrorContent] = useState({ title: '', message: '' });
   const [errorVisible, setErrorVisible] = useState(false);
+
+  const [createdOrder, setCreatedOrder] = useState<OrderDocument | null>(null);
+
+  const tracking = useOrderTracking(createdOrder?._id, {
+    seed: createdOrder,
+    onStatusChange: onTrackedStatusChange,
+  });
 
   // The banner is a confirmation, not a state — it steps aside on its own.
   useEffect(() => {
@@ -226,7 +241,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
     const googleMapsLink = values.googleMapsLink.trim();
 
     try {
-      await ordersApi.create({
+      const created = await ordersApi.create({
         customerPhoneNumber: values.customerPhoneNumber.trim(),
         partnerId,
         deliveryFee: DELIVERY_FEE,
@@ -243,6 +258,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
       }
       setValues(EMPTY_FORM);
       setSuccessMessage('Order created.');
+      setCreatedOrder(created);
       onCreated();
     } catch (error) {
       if (!isMounted()) {
@@ -261,6 +277,8 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
   }, [partnerId, values, isMounted, onCreated]);
 
   const dismissError = useCallback(() => setErrorVisible(false), []);
+
+  const handleDismissTracker = useCallback(() => setCreatedOrder(null), []);
 
   const focusDescription = useCallback(
     () => descriptionRef.current?.focus(),
@@ -379,6 +397,27 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
               testID="order-submit"
             />
           </Animated.View>
+
+          {createdOrder ? (
+            <View style={styles.tracker}>
+              <LiveOrderTracker
+                order={tracking.order}
+                status={tracking.status}
+                card={tracking.card}
+                isConnected={tracking.isConnected}
+                error={tracking.error}
+              />
+              {tracking.isTerminal ? (
+                <AppButton
+                  label="Track another order"
+                  variant="outline"
+                  fullWidth
+                  onPress={handleDismissTracker}
+                  testID="order-tracker-dismiss"
+                />
+              ) : null}
+            </View>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
 

@@ -9,14 +9,19 @@ export { authApi, OTP_LENGTH } from './auth.api';
 export { ordersApi, fromOrderDocument, toDayUnix } from './orders.api';
 export { locationApi } from './location.api';
 export {
+  acquireSocket,
   connectSocket,
   disconnectSocket,
   driverNotificationEvent,
   emitDriverLocation,
   forgetOrderRoom,
+  isSocketConnected,
   joinOrderRoom,
   onDriverNotification,
   onOrderUpdate,
+  onSocketStatus,
+  releaseSocket,
+  resyncSocket,
 } from './socket';
 export {
   ApiError,
@@ -58,10 +63,13 @@ export type {
   CreateOrderRequest,
 } from './orders.api';
 export type {
+  AppSocket,
+  ClientToServerEvents,
   DriverDeliveryState,
   DriverLocationUpdate,
   DriverNotification,
   DriverNotificationType,
+  ServerToClientEvents,
 } from './socket';
 export type {
   ReportLocationRequest,

@@ -238,8 +238,8 @@ export interface OrderDocument {
   pickupLocation?: OrderPlace;
   dropoffLocation?: OrderPlace;
   note?: string | null;
-  assignedAt?: string;
-  deliveredAt?: string;
+  assignedAt?: number | string;
+  deliveredAt?: number | string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -573,9 +573,10 @@ export interface CreateOrderRequest {
 }
 
 export const ordersApi = {
-  async create(input: CreateOrderRequest): Promise<Order | null> {
+  async create(input: CreateOrderRequest): Promise<OrderDocument | null> {
     if (ENV.useMockApi) {
       await delay(MOCK_LATENCY_MS);
+      const now = new Date().toISOString();
       const doc: OrderDocument = {
         _id: `mock-order-${MOCK_ORDERS.length + 1}`,
         status: 'PENDING',
@@ -583,17 +584,18 @@ export const ordersApi = {
         deliveryFee: { $numberDecimal: String(input.deliveryFee) },
         dropoffLocation: input.dropoffLocation,
         note: input.note,
+        createdAt: now,
+        updatedAt: now,
       };
       // Unshifted so a later `history()`/`list()` shows it, like the server would.
       MOCK_ORDERS.unshift(doc);
-      return fromOrderDocument(doc);
+      return doc;
     }
     const res = await apiRequest<unknown>(ordersUrl(), {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    const doc = pickDocument(res);
-    return doc ? fromOrderDocument(doc) : null;
+    return pickDocument(res) ?? null;
   },
 
   async list(params: ListOrdersParams = {}): Promise<Order[]> {
@@ -608,17 +610,32 @@ export const ordersApi = {
     return (res.data ?? []).map(fromListItem);
   },
 
-  async history(range: OrderHistoryRequest): Promise<Order[]> {
+  async historyDocuments(
+    range: OrderHistoryRequest,
+  ): Promise<OrderDocument[]> {
     if (ENV.useMockApi) {
       // The mock is a fixed showcase set, so the range is ignored here.
       await delay(MOCK_LATENCY_MS);
-      return MOCK_ORDERS.map(fromOrderDocument);
+      return MOCK_ORDERS;
     }
     const res = await apiRequest<OrderHistoryResponse>('/api/order/history', {
       method: 'POST',
       body: JSON.stringify(range),
     });
-    return (res.data ?? []).map(fromOrderDocument);
+    return res.data ?? [];
+  },
+
+  async history(range: OrderHistoryRequest): Promise<Order[]> {
+    const docs = await ordersApi.historyDocuments(range);
+    return docs.map(fromOrderDocument);
+  },
+
+  async findById(
+    orderId: string,
+    range: OrderHistoryRequest,
+  ): Promise<OrderDocument | null> {
+    const docs = await ordersApi.historyDocuments(range);
+    return docs.find(doc => doc._id === orderId) ?? null;
   },
 
   /**
