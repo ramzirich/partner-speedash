@@ -111,7 +111,7 @@ const keepAliveTask = async (): Promise<void> => {
 
 const taskOptions = {
   taskName: 'DriverLocation',
-  taskTitle: 'Driver',
+  taskTitle: 'PartnerSpeedash',
   taskDesc: 'Sharing your location while you deliver.',
   taskIcon: { name: 'ic_launcher', type: 'mipmap' },
   color: colors.primary,
@@ -135,7 +135,7 @@ const requestPermissions = async (): Promise<boolean> => {
     {
       title: 'Location permission',
       message:
-        'Driver needs your location to share your position on deliveries.',
+        'PartnerSpeedash needs your location to share your position on deliveries.',
       buttonPositive: 'Allow',
       buttonNegative: 'Deny',
     },

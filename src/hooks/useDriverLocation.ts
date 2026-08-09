@@ -23,7 +23,7 @@ const requestAndroidPermission = async (): Promise<boolean> => {
     PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
     {
       title: 'Location permission',
-      message: 'Driver needs your location to show you on the map.',
+      message: 'PartnerSpeedash needs your location to show you on the map.',
       buttonPositive: 'Allow',
       buttonNegative: 'Deny',
     },
