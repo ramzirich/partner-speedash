@@ -53,6 +53,7 @@ export type {
   OrderHistoryRequest,
   OrderHistoryResponse,
   UpdateOrderStatusRequest,
+  CreateOrderRequest,
 } from './orders.api';
 export type {
   DriverDeliveryState,

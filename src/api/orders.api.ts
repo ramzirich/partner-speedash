@@ -153,6 +153,14 @@ const toAmount = (fee: string): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const toEpochMs = (value: string | undefined): number | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
 const isLatLng = (latitude: number, longitude: number): boolean =>
   Number.isFinite(latitude) &&
   Number.isFinite(longitude) &&
@@ -176,6 +184,7 @@ const toOrder = (api: ApiOrder): Order => {
     customerPhone: ACTIVE_STATUSES.has(api.status)
       ? api.customerPhoneSnapshot
       : undefined,
+    createdAt: toEpochMs(api.createdAt),
   };
 };
 
@@ -293,10 +302,7 @@ const toPartner = (
   }
   const name =
     partner.businessName?.trim() ||
-    [partner.firstName, partner.lastName]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
+    [partner.firstName, partner.lastName].filter(Boolean).join(' ').trim();
   if (!name) {
     return undefined;
   }
@@ -330,6 +336,7 @@ export const fromOrderDocument = (doc: OrderDocument): Order => {
       ? doc.customerPhoneNumber ?? undefined
       : undefined,
     note: doc.note ?? undefined,
+    createdAt: toEpochMs(doc.createdAt),
   };
 };
 
@@ -462,14 +469,17 @@ export interface UpdateOrderStatusRequest {
 }
 
 /**
- * `PATCH :id/status` lives on the realtime gateway (SOCKET_URL), not the REST
+ * The `/orders` routes live on the realtime gateway (SOCKET_URL), not the REST
  * host — absolute so `apiRequest` skips its own base URL while still attaching
  * the Bearer header, the timeout and refresh-on-401.
  */
+const gatewayUrl = (path: string): string =>
+  `${ENV.socketUrl.replace(/\/$/, '')}${path}`;
+
+const ordersUrl = (): string => gatewayUrl('/orders');
+
 const statusUrl = (orderId: string): string =>
-  `${ENV.socketUrl.replace(/\/$/, '')}/orders/${encodeURIComponent(
-    orderId,
-  )}/status`;
+  gatewayUrl(`/orders/${encodeURIComponent(orderId)}/status`);
 
 /**
  * The controller returns whatever the service hands back, so the document may
@@ -497,7 +507,38 @@ const pickDocument = (res: unknown): OrderDocument | undefined => {
   return undefined;
 };
 
+export interface CreateOrderRequest {
+  customerPhoneNumber: string;
+  partnerId: string;
+  deliveryFee: number;
+  dropoffLocation: OrderPlace;
+  note?: string;
+}
+
 export const ordersApi = {
+  async create(input: CreateOrderRequest): Promise<Order | null> {
+    if (ENV.useMockApi) {
+      await delay(MOCK_LATENCY_MS);
+      const doc: OrderDocument = {
+        _id: `mock-order-${MOCK_ORDERS.length + 1}`,
+        status: 'PENDING',
+        customerPhoneNumber: input.customerPhoneNumber,
+        deliveryFee: { $numberDecimal: String(input.deliveryFee) },
+        dropoffLocation: input.dropoffLocation,
+        note: input.note,
+      };
+      // Unshifted so a later `history()`/`list()` shows it, like the server would.
+      MOCK_ORDERS.unshift(doc);
+      return fromOrderDocument(doc);
+    }
+    const res = await apiRequest<unknown>(ordersUrl(), {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    const doc = pickDocument(res);
+    return doc ? fromOrderDocument(doc) : null;
+  },
+
   async list(params: ListOrdersParams = {}): Promise<Order[]> {
     if (ENV.useMockApi) {
       await delay(MOCK_LATENCY_MS);

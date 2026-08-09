@@ -40,10 +40,8 @@ const TabBarButtonComponent: React.FC<TabBarButtonProps> = ({
 
   const containerStyle = useMemo(
     () =>
-      (state: PressableStateCallbackType): StyleProp<ViewStyle> => [
-        styles.tab,
-        state.pressed && styles.pressed,
-      ],
+      (state: PressableStateCallbackType): StyleProp<ViewStyle> =>
+        [styles.tab, state.pressed && styles.pressed],
     [],
   );
 
@@ -61,7 +59,8 @@ const TabBarButtonComponent: React.FC<TabBarButtonProps> = ({
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
       accessibilityValue={badge > 0 ? { text: `${badge} pending` } : undefined}
-      testID={`tab-${tabKey}`}>
+      testID={`tab-${tabKey}`}
+    >
       <View style={styles.iconSlot}>
         <View style={styles.iconBox}>
           <Ionicons

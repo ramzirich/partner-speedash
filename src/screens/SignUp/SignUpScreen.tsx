@@ -18,7 +18,7 @@ import { styles } from './SignUpScreen.styles';
 // TODO: replace with the real onboarding contact number.
 const CONTACT_NUMBER = '+961 81793281';
 const CONTACT_WA = CONTACT_NUMBER.replace(/\D/g, '');
-const CONTACT_MESSAGE = "Hi! I'd like to sign up as a SpeedDash driver.";
+const CONTACT_MESSAGE = "Hi! I'd like to sign up as a SpeedDash partner.";
 
 /** Content groups that stagger in after the brand mark: intro, actions. */
 const ENTRANCE_GROUPS = 2;
@@ -70,8 +70,8 @@ const SignUpScreenComponent: React.FC<ScreenProps<'SignUp'>> = ({
         <Animated.View style={introStyle}>
           <Text style={styles.title}>Want to sign up?</Text>
           <Text style={styles.subtitle}>
-            New driver accounts are set up by our team. Message us on WhatsApp
-            and we'll get you on the road.
+            New partner accounts are set up by our team. Message us on WhatsApp
+            and we'll get your orders moving.
           </Text>
         </Animated.View>
 

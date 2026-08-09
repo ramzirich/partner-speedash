@@ -41,6 +41,7 @@ export interface Order {
   /** Short line under the addresses — e.g. the offer message from the server. */
   note?: string;
   progress?: OrderProgress;
+  createdAt?: number;
 }
 
 const STATUS_META: Record<OrderStatus, { label: string; color: string }> = {
@@ -250,9 +251,12 @@ const OrderCardComponent: React.FC<OrderCardProps> = ({
           ]}
           onPress={handleCallPartner}
           accessibilityRole="button"
-          accessibilityLabel={`Call ${partner?.name ?? 'partner'} at ${partnerPhone}`}
+          accessibilityLabel={`Call ${
+            partner?.name ?? 'partner'
+          } at ${partnerPhone}`}
           hitSlop={8}
-          testID={`order-${order.id}-call-partner`}>
+          testID={`order-${order.id}-call-partner`}
+        >
           <Ionicons
             name="storefront-outline"
             size={ICON_SIZE}
@@ -277,7 +281,8 @@ const OrderCardComponent: React.FC<OrderCardProps> = ({
           accessibilityLabel={`Open directions to the pickup at ${order.pickup}`}
           accessibilityHint="Opens Google Maps"
           hitSlop={4}
-          testID={`order-${order.id}-navigate`}>
+          testID={`order-${order.id}-navigate`}
+        >
           <Ionicons
             name="navigate"
             size={ICON_SIZE}
@@ -331,7 +336,8 @@ const OrderCardComponent: React.FC<OrderCardProps> = ({
           accessibilityLabel={`Message customer ${customerPhone} on WhatsApp`}
           accessibilityHint="Opens WhatsApp"
           hitSlop={8}
-          testID={`order-${order.id}-whatsapp`}>
+          testID={`order-${order.id}-whatsapp`}
+        >
           <Text style={styles.customerLabel}>CUSTOMER</Text>
           <View style={styles.customerAction}>
             <Ionicons
@@ -354,7 +360,8 @@ const OrderCardComponent: React.FC<OrderCardProps> = ({
             style={styles.orderId}
             numberOfLines={1}
             ellipsizeMode="middle"
-            testID={`order-${order.id}-id`}>
+            testID={`order-${order.id}-id`}
+          >
             #{order.id}
           </Text>
         </View>
@@ -389,9 +396,9 @@ const OrderCardComponent: React.FC<OrderCardProps> = ({
           placeholder={updating ? 'Updating status…' : 'Update delivery status'}
           onSelect={handleStatusSelect}
           disabled={updating}
-          accessibilityLabel={`Update the status of order ${order.id}. Currently ${
-            progress ? STEP_NAME[progress] : status.label
-          }.`}
+          accessibilityLabel={`Update the status of order ${
+            order.id
+          }. Currently ${progress ? STEP_NAME[progress] : status.label}.`}
           testID={`order-${order.id}-status`}
         />
       ) : null}

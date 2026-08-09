@@ -20,11 +20,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppDialog } from '../../components/AppDialog';
-import {
-  addDays,
-  formatDateRange,
-  todayDateString,
-} from '../../components/CalendarDatePicker';
+import { addDays, todayDateString } from '../../components/CalendarDatePicker';
 import type { DateRange } from '../../components/CalendarDatePicker';
 import { MotoLoader } from '../../components/MotoLoader';
 import {
@@ -33,38 +29,38 @@ import {
   OrderStatus,
   orderStepName,
 } from '../../components/OrderCard';
-import { OrderOfferBanner } from '../../components/OrderOfferBanner';
 import { authApi, ordersApi, toApiError, toDayUnix } from '../../api';
-import type { DriverNotification } from '../../api';
-import { useBackgroundLocation } from '../../hooks/useBackgroundLocation';
-import { useDriverOffers } from '../../hooks/useDriverOffers';
 import { useDriverSocket } from '../../hooks/useDriverSocket';
 import { useIsMounted } from '../../hooks/useIsMounted';
 import { useAppDispatch, useAppSelector, logout } from '../../store';
 import { ScreenProps } from '../../navigation';
 import { colors } from '../../theme';
-import { HomeTab } from './HomeTab';
+import { CreateOrderTab } from './CreateOrderTab';
 import { OrdersTab } from './OrdersTab';
 import { TabBarButton } from './TabBarButton';
 import { useHomeAnimation } from './useHomeAnimation';
 import type { ContentKey } from './types';
 import { styles } from './HomeScreen.styles';
 
-const DEFAULT_REGION = { latitude: 33.8938, longitude: 35.5018 };
+const LOGOUT_ICON_SIZE = 20;
 
+/** The rolling window the create pane's summary line counts over. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Yesterday → today. Two calendar days because the history endpoint rounds its
+ * bounds out to whole UTC days — it's the smallest request guaranteed to
+ * contain the last 24 hours.
+ */
 const defaultRange = (): DateRange => {
   const today = todayDateString();
   return { start: addDays(today, -1), end: today };
 };
 
-const FALLBACK_CURRENCY = 'USD';
-
 /** Mock processing time for accept/decline (replace with the API call). */
 const PROCESS_DELAY_MS = 1800;
 
-const LOGOUT_ICON_SIZE = 20;
-
-/** Sign-in's waiting overlay, worded for the step the driver just picked. */
+/** Sign-in's waiting overlay, worded for the step just picked. */
 const statusWaitLabel = (next: OrderProgress): string =>
   next === 'DELIVERED'
     ? 'Marking this order delivered…'
@@ -76,7 +72,12 @@ const TABS: ReadonlyArray<{
   icon: string;
   iconActive: string;
 }> = [
-  { key: 'home', label: 'Home', icon: 'home-outline', iconActive: 'home' },
+  {
+    key: 'home',
+    label: 'New order',
+    icon: 'add-circle-outline',
+    iconActive: 'add-circle',
+  },
   {
     key: 'orders',
     label: 'Orders',
@@ -101,8 +102,9 @@ const capitalize = (value: string): string =>
 
 /**
  * Home shell: a content area that swaps with the active bottom button, plus the
- * bottom bar itself. Orders state lives here (not in OrdersTab) so the pending
- * count can badge the Orders button and survive tab switches.
+ * bottom bar itself. Orders state lives here (not in OrdersTab) so the open
+ * count can badge the Orders button and survive tab switches — and so the
+ * create pane can refetch into the same list after raising an order.
  */
 const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const isMounted = useIsMounted();
@@ -117,20 +119,12 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const [logoutVisible, setLogoutVisible] = useState(false);
 
   const greeting = getGreeting();
-  const displayName = firstName ? capitalize(firstName) : 'Driver';
+  const displayName = firstName ? capitalize(firstName) : 'Partner';
 
   // The socket follows the session: it dials for a signed-in partner and closes
-  // on sign-out. Declared before the two hooks that use it so the connection is
-  // up before either subscribes or emits.
+  // on sign-out. Nothing subscribes to it yet.
   useDriverSocket(partnerId);
-  const { position } = useBackgroundLocation(partnerId);
-  const {
-    offers,
-    offerIds,
-    alert: offerAlert,
-    dismissAlert,
-    notificationSeq,
-  } = useDriverOffers(partnerId);
+
   const [range, setRange] = useState<DateRange>(defaultRange);
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
@@ -138,14 +132,10 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const [processingLabel, setProcessingLabel] = useState<string | null>(null);
   /** Kept apart from `processingLabel` so accept/decline's timer can't clear it. */
   const [statusLabel, setStatusLabel] = useState<string | null>(null);
-  const [focusOrderId, setFocusOrderId] = useState<string | null>(null);
+  const [focusOrderId] = useState<string | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ordersRequestRef = useRef(0);
-  const handledSeqRef = useRef(0);
-
-  const latitude = position?.latitude ?? DEFAULT_REGION.latitude;
-  const longitude = position?.longitude ?? DEFAULT_REGION.longitude;
 
   useEffect(
     () => () => {
@@ -158,10 +148,9 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
 
   /**
    * `POST /api/order/history` for the selected days — the one fetch behind both
-   * tabs (the summary counts the same orders the list shows). Every call takes a
-   * ticket so a slow earlier response can never overwrite a newer one, and
-   * `silent` skips the spinner for background refetches (the list on screen
-   * stays put until fresh data lands).
+   * tabs. Every call takes a ticket so a slow earlier response can never
+   * overwrite a newer one, and `silent` skips the spinner for background
+   * refetches (the list on screen stays put until fresh data lands).
    */
   const refreshOrders = useCallback(
     async (silent = false): Promise<void> => {
@@ -194,24 +183,16 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     [isMounted, range.start, range.end],
   );
 
-  // Initial load, and again whenever the driver picks a different range —
+  // Initial load, and again whenever the partner picks a different range —
   // `refreshOrders` is keyed to it.
   useEffect(() => {
     refreshOrders();
   }, [refreshOrders]);
 
-  /**
-   * A pushed notification makes both tabs stale, so refetch wherever the driver
-   * is standing. The seq guard keeps it to one fetch per notification even
-   * though this effect also re-runs when the range changes.
-   */
-  useEffect(() => {
-    if (notificationSeq === handledSeqRef.current) {
-      return;
-    }
-    handledSeqRef.current = notificationSeq;
+  /** A new order belongs to the fetched window — pull the server's version. */
+  const handleOrderCreated = useCallback(() => {
     refreshOrders(true);
-  }, [notificationSeq, refreshOrders]);
+  }, [refreshOrders]);
 
   const resolveOrder = useCallback(
     (id: string, nextStatus: OrderStatus, label: string) => {
@@ -228,48 +209,28 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
           prev.map(o => (o.id === id ? { ...o, status: nextStatus } : o)),
         );
         setProcessingLabel(null);
-        // Answering an order moves it between the summary's buckets — pull the
-        // server's version so both tabs agree on what just happened.
         refreshOrders(true);
       }, PROCESS_DELAY_MS);
     },
     [isMounted, refreshOrders],
   );
 
-  // Socket-pushed offers: the backend has no accept/reject route yet (the service
-  // methods exist but aren't exposed over HTTP), so responding is a log for now.
   const handleAccept = useCallback(
-    (order: Order) => {
-      if (offerIds.has(order.id)) {
-        console.log(`[order] accept ${order.id}`);
-        refreshOrders(true);
-        return;
-      }
-      resolveOrder(order.id, 'on_delivery', 'Accepting order…');
-    },
-    [offerIds, resolveOrder, refreshOrders],
+    (order: Order) => resolveOrder(order.id, 'on_delivery', 'Accepting order…'),
+    [resolveOrder],
   );
 
   const handleDecline = useCallback(
-    (order: Order) => {
-      if (offerIds.has(order.id)) {
-        console.log(`[order] reject ${order.id}`);
-        refreshOrders(true);
-        return;
-      }
-      resolveOrder(order.id, 'rejected', 'Rejecting order…');
-    },
-    [offerIds, resolveOrder, refreshOrders],
+    (order: Order) => resolveOrder(order.id, 'rejected', 'Rejecting order…'),
+    [resolveOrder],
   );
 
   /**
    * Advance a live order one step (ASSIGNED → HEADING_TO_PARTNER → AT_PICKUP →
    * HEADING_TO_CUSTOMER → DELIVERED). The card only ever offers the one legal
-   * move, so this just forwards it to `PATCH /orders/:id/status` and swaps in
-   * whatever the server says the order now is.
-   *
-   * The rider overlay covers the whole round trip — the PATCH *and* the refetch
-   * behind it — so the list the driver sees when it lifts is the fresh one.
+   * move, so this forwards it to `PATCH /orders/:id/status` and swaps in
+   * whatever the server says the order now is. The overlay covers the whole
+   * round trip — the PATCH *and* the refetch behind it.
    */
   const handleAdvanceStatus = useCallback(
     async (order: Order, next: OrderProgress): Promise<void> => {
@@ -289,14 +250,11 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
           return;
         }
         if (updated) {
-          setOrders(prev =>
-            prev.map(o => (o.id === updated.id ? updated : o)),
-          );
+          setOrders(prev => prev.map(o => (o.id === updated.id ? updated : o)));
         }
         setOrdersError(null);
         // The response only covers this order — a silent refetch also picks up
-        // whatever else the transition changed server-side. Awaited (it never
-        // rejects; it reports through `ordersError`) so the overlay outlives it.
+        // whatever else the transition changed server-side.
         await refreshOrders(true);
       } catch (err) {
         if (isMounted()) {
@@ -313,56 +271,28 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   );
 
   /**
-   * Tapping the notification opens the Orders tab on that order's card. The
-   * refetch is handled by the effect above: switching to `orders` with an
-   * unhandled seq is exactly the case it waits for.
+   * The create pane's one line about the history: how many orders were raised
+   * in the last 24 hours. The window is applied here, not in the request — the
+   * endpoint widens whatever bounds it's given to whole UTC days, so the fetch
+   * pulls two of them and this trims it back to a rolling day. An order with no
+   * timestamp can't be placed in the window, so it doesn't count.
    */
-  const handleOpenOffer = useCallback(
-    (notification: DriverNotification) => {
-      setFocusOrderId(notification.orderId);
-      setActiveKey('orders');
-      dismissAlert();
-    },
-    [dismissAlert],
-  );
+  const recentCount = useMemo(() => {
+    const cutoff = Date.now() - DAY_MS;
+    return orders.filter(order => (order.createdAt ?? 0) >= cutoff).length;
+  }, [orders]);
 
-  // Offers first (they're the actionable ones), then the fetched day's orders
-  // with any duplicate of an offer dropped.
-  const visibleOrders = useMemo(
-    () => [...offers, ...orders.filter(order => !offerIds.has(order.id))],
-    [offers, orders, offerIds],
-  );
-
-  /** The summary sheet counts exactly what the Orders tab lists. */
-  const stats = useMemo(() => {
-    const counts = {
-      total: visibleOrders.length,
-      done: 0,
-      pending: 0,
-      rejected: 0,
-    };
-    visibleOrders.forEach(order => {
-      if (order.status === 'done') {
-        counts.done += 1;
-      } else if (order.status === 'pending') {
-        counts.pending += 1;
-      } else if (order.status === 'rejected') {
-        counts.rejected += 1;
-      }
-    });
-    return counts;
-  }, [visibleOrders]);
-
-  /** Only delivered orders have actually paid, so only they are counted. */
-  const earnings = useMemo(() => {
-    const paid = visibleOrders.filter(order => order.status === 'done');
-    return {
-      amount: paid.reduce((sum, order) => sum + (order.amount ?? 0), 0),
-      currency: paid[0]?.currency ?? FALLBACK_CURRENCY,
-    };
-  }, [visibleOrders]);
-
-  const periodLabel = useMemo(() => formatDateRange(range), [range]);
+  const ordersSummary = useMemo(() => {
+    if (ordersError) {
+      return ordersError;
+    }
+    if (ordersLoading) {
+      return 'Loading recent orders…';
+    }
+    return `${recentCount} ${
+      recentCount === 1 ? 'order' : 'orders'
+    } in the last 24 hours`;
+  }, [ordersError, ordersLoading, recentCount]);
 
   /** Whichever wait is in flight owns the overlay; only one runs at a time. */
   const waitLabel = processingLabel ?? statusLabel;
@@ -391,14 +321,17 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     navigation.reset('Landing');
   }, [refreshToken, dispatch, navigation, isMounted]);
 
-  const handleTabPress = useCallback((key: ContentKey) => setActiveKey(key), []);
+  const handleTabPress = useCallback(
+    (key: ContentKey) => setActiveKey(key),
+    [],
+  );
 
   /**
-   * The badge counts everything still on the driver's plate — offers waiting on
-   * an answer *and* deliveries already under way. Only done and rejected orders
-   * drop out of it.
+   * The badge counts everything still on the partner's plate — orders waiting
+   * on a driver *and* deliveries already under way. Only done and rejected
+   * orders drop out of it.
    */
-  const openCount = visibleOrders.filter(
+  const openCount = orders.filter(
     o => o.status !== 'done' && o.status !== 'rejected',
   ).length;
 
@@ -408,11 +341,12 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   );
   const logoutButtonStyle = useMemo(
     () =>
-      (state: PressableStateCallbackType): StyleProp<ViewStyle> => [
-        styles.logoutButton,
-        state.pressed && styles.logoutButtonPressed,
-        loggingOut && styles.logoutButtonPressed,
-      ],
+      (state: PressableStateCallbackType): StyleProp<ViewStyle> =>
+        [
+          styles.logoutButton,
+          state.pressed && styles.logoutButtonPressed,
+          loggingOut && styles.logoutButtonPressed,
+        ],
     [loggingOut],
   );
   const tabBarStyle = useMemo(
@@ -424,7 +358,7 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Top bar: time-based greeting + driver name, sign-out on the right. */}
+      {/* Top bar: time-based greeting + partner name, sign-out on the right. */}
       <Animated.View style={headerStyle}>
         <View pointerEvents="none" style={styles.headerBackdrop}>
           <View style={styles.headerBlob} />
@@ -438,8 +372,6 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
           </Text>
         </View>
 
-        {/* Sign-out lives here now that there is no Profile tab. The confirm
-            dialog in `handleLogout` is what protects the tap. */}
         <Pressable
           style={logoutButtonStyle}
           onPress={handleLogout}
@@ -448,7 +380,8 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
           accessibilityRole="button"
           accessibilityLabel="Log out"
           accessibilityState={{ disabled: loggingOut, busy: loggingOut }}
-          testID="home-logout">
+          testID="home-logout"
+        >
           {loggingOut ? (
             <ActivityIndicator size="small" color={colors.danger} />
           ) : (
@@ -463,26 +396,16 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
 
       {/* Content switches with the active bottom button. */}
       <View style={styles.content}>
-        {/* Socket-pushed order notification, floating over the content. */}
-        <OrderOfferBanner
-          notification={offerAlert?.notification ?? null}
-          expiresAt={offerAlert?.expiresAt ?? null}
-          onPress={handleOpenOffer}
-          onDismiss={dismissAlert}
-        />
-
         {activeKey === 'home' ? (
-          <HomeTab
-            latitude={latitude}
-            longitude={longitude}
-            hasFix={position !== null}
-            stats={stats}
-            earnings={earnings}
-            periodLabel={periodLabel}
+          <CreateOrderTab
+            partnerId={partnerId}
+            summary={ordersSummary}
+            summaryIsError={ordersError !== null}
+            onCreated={handleOrderCreated}
           />
         ) : (
           <OrdersTab
-            orders={visibleOrders}
+            orders={orders}
             loading={ordersLoading}
             error={ordersError}
             focusOrderId={focusOrderId}
@@ -512,22 +435,23 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
         ))}
       </Animated.View>
 
-      {/* Sign-in's rider overlay, reused for anything the driver has to wait on:
+      {/* Sign-in's rider overlay, reused for anything worth waiting on:
           accept/decline, and a status change with its refetch. */}
       <Modal
         visible={waitLabel !== null}
         transparent
         animationType="fade"
-        statusBarTranslucent>
+        statusBarTranslucent
+      >
         <MotoLoader visible label={waitLabel ?? ''} />
       </Modal>
 
       <AppDialog
         visible={logoutVisible}
         title="Log out"
-        message="You'll need to sign in again to accept deliveries."
+        message="You'll need to sign in again to create orders."
         tone="danger"
-        confirmLabel="Log out" 
+        confirmLabel="Log out"
         confirmLoading={loggingOut}
         onConfirm={handleLogoutConfirm}
         cancelLabel="Cancel"
