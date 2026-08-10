@@ -22,11 +22,15 @@ import { BrandBackdrop } from '../../components/BrandBackdrop';
 import { InlineAlert } from '../../components/InlineAlert';
 import { LiveOrderTracker } from '../../components/LiveOrderTracker';
 import { MotoLoader } from '../../components/MotoLoader';
+import { PhoneField } from '../../components/PhoneField';
 import { ordersApi, toApiError } from '../../api';
 import type { OrderDocument, OrderDocumentStatus } from '../../api';
+import { DEFAULT_COUNTRY_CODE, getCountry } from '../../data';
+import type { Country } from '../../data';
 import { useEntranceAnimation } from '../../hooks/useEntranceAnimation';
 import { useIsMounted } from '../../hooks/useIsMounted';
 import { useOrderTracking } from '../../hooks/useOrderTracking';
+import { toE164, validateNationalNumber } from '../../utils/phone';
 import { styles } from './CreateOrderTab.styles';
 
 /** Content groups that stagger in: intro, form, actions. */
@@ -51,18 +55,11 @@ type FormErrors = Partial<Record<FormField, string>>;
 /** Takes the whole form, so a field's rule can depend on its siblings. */
 type Validator = (value: string, values: FormValues) => string | undefined;
 
-const PHONE_RE = /^\+?\d{7,15}$/;
-
-const validatePhone: Validator = value => {
-  const trimmed = value.trim().replace(/[\s-]/g, '');
-  if (!trimmed) {
-    return 'Customer phone is required.';
-  }
-  if (!PHONE_RE.test(trimmed)) {
-    return 'Enter a valid phone number, e.g. +96170123456.';
-  }
-  return undefined;
-};
+/**
+ * Only the national part is typed here — the country code comes from the
+ * field's picker, so it is never in the string being validated.
+ */
+const validatePhone: Validator = value => validateNationalNumber(value);
 
 /**
  * The address and the link are two ways of saying the same thing, so either one
@@ -161,6 +158,8 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
   const noteRef = useRef<TextInput>(null);
 
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
+  /** ISO code behind the phone field's flag — Lebanon until changed. */
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -242,7 +241,12 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
 
     try {
       const created = await ordersApi.create({
-        customerPhoneNumber: values.customerPhoneNumber.trim(),
+        // The gateway wants one E.164 string, so the picked dial code and the
+        // typed national number are joined only at the edge.
+        customerPhoneNumber: toE164(
+          getCountry(countryCode).dialCode,
+          values.customerPhoneNumber,
+        ),
         partnerId,
         deliveryFee: DELIVERY_FEE,
         // Whichever of the two was given — the empty one is left out rather
@@ -257,6 +261,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
         return;
       }
       setValues(EMPTY_FORM);
+      setCountryCode(DEFAULT_COUNTRY_CODE);
       setSuccessMessage('Order created.');
       setCreatedOrder(created);
       onCreated();
@@ -274,7 +279,12 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
         setSubmitting(false);
       }
     }
-  }, [partnerId, values, isMounted, onCreated]);
+  }, [partnerId, values, countryCode, isMounted, onCreated]);
+
+  const handleCountryChange = useCallback(
+    (country: Country) => setCountryCode(country.code),
+    [],
+  );
 
   const dismissError = useCallback(() => setErrorVisible(false), []);
 
@@ -328,15 +338,15 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
           </Animated.View>
 
           <Animated.View style={formStyle}>
-            <AppTextField
+            <PhoneField
               label="Customer phone"
               value={values.customerPhoneNumber}
               onChangeText={changeHandlers.customerPhoneNumber}
               onBlur={blurHandlers.customerPhoneNumber}
               error={errors.customerPhoneNumber}
-              placeholder="+96170123456"
-              keyboardType="phone-pad"
-              autoCapitalize="none"
+              placeholder="70 123 456"
+              countryCode={countryCode}
+              onCountryChange={handleCountryChange}
               returnKeyType="next"
               onSubmitEditing={focusDescription}
               testID="order-customer-phone"

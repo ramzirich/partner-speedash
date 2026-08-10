@@ -164,7 +164,7 @@ const SignInScreenComponent: React.FC<ScreenProps<'SignIn'>> = ({
           <Animated.View style={introStyle}>
             <Text style={styles.title}>Welcome back</Text>
             <Text style={styles.subtitle}>
-              Sign in to start accepting deliveries and tracking your earnings.
+              Sign in to request a rider and track every delivery.
             </Text>
           </Animated.View>
 

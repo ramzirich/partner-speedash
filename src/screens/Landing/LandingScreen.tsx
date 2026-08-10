@@ -14,9 +14,13 @@ import { styles } from './LandingScreen.styles';
 
 const RIDER_ARTWORK = require('../../assets/images/delivery1.jpg');
 
+// Partner-side value props. SpeedDash is delivery-only, NOT a marketplace: the
+// customer orders from the partner directly, and the partner then asks us for a
+// rider. So nothing here may promise demand ("reach more customers", "grow your
+// sales") — we sell the drop-off, not the order.
 const VALUE_ITEMS: ValueStripItem[] = [
-  { key: 'payouts', icon: 'wallet-outline', label: 'Paid per delivery' },
-  { key: 'hours', icon: 'time-outline', label: 'Flexible hours' },
+  { key: 'riders', icon: 'bicycle-outline', label: 'Riders on demand' },
+  { key: 'tracking', icon: 'navigate-outline', label: 'Live tracking' },
   { key: 'support', icon: 'headset-outline', label: '24/7 support' },
 ];
 
@@ -73,9 +77,9 @@ const LandingScreenComponent: React.FC<ScreenProps<'Landing'>> = ({
           />
 
           <View style={styles.headlineBlock}>
-            <Text style={styles.headline}>Drive with SpeedDash</Text>
+            <Text style={styles.headline}>Partner with SpeedDash</Text>
             <Text style={styles.subhead}>
-              Your city, your schedule, your earnings.
+              Your customers order from you. We get it to their door.
             </Text>
           </View>
         </Animated.View>

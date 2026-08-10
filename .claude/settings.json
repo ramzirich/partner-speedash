@@ -36,7 +36,9 @@
       "Bash(node -e \"console.log\\(Date.UTC\\(2026,7,4\\), Date.UTC\\(2026,7,5\\)\\)\")",
       "Read(//c/Users/PcUser/Desktop/projects/speeddash-backend/src/order/**)",
       "Bash(curl -s -m 5 -o /dev/null -w \"metro localhost:8081 -> %{http_code}\\\\n\" http://localhost:8081/status)",
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "Bash(powershell -NoProfile -Command \"Get-Process -Id 26232 | Select-Object Id,ProcessName,StartTime | Format-List\")",
+      "PowerShell(adb shell run-as com.driver ls /data/data/com.driver/shared_prefs/)"
     ],
     "additionalDirectories": [
       "c:\\Users\\PcUser\\.claude\\projects\\c--Users-PcUser-Desktop-projects-driver\\memory",
