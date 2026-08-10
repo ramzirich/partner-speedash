@@ -7,6 +7,7 @@ export {
 } from './authToken';
 export { authApi, OTP_LENGTH } from './auth.api';
 export { ordersApi, fromOrderDocument, toDayUnix } from './orders.api';
+export { customersApi } from './customers.api';
 export { locationApi } from './location.api';
 export {
   acquireSocket,
@@ -75,3 +76,8 @@ export type {
   ReportLocationRequest,
   ReportLocationResponse,
 } from './location.api';
+export type {
+  CustomerAddress,
+  CustomerLookup,
+  FindCustomerResponse,
+} from './customers.api';

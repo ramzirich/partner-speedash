@@ -206,6 +206,7 @@ export interface OrderPlace {
   googlePlaceId?: string;
   description?: string;
   googleMapsLink?: string;
+  zone?: string;
 }
 
 export interface OrderParty {
@@ -566,6 +567,7 @@ const pickDocument = (res: unknown): OrderDocument | undefined => {
 
 export interface CreateOrderRequest {
   customerPhoneNumber: string;
+  customerName?: string;
   partnerId: string;
   deliveryFee: number;
   dropoffLocation: OrderPlace;

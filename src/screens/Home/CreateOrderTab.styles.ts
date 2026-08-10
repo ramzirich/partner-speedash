@@ -45,6 +45,30 @@ export const styles = StyleSheet.create({
   form: {
     gap: spacing.md,
   },
+  lookup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: -spacing.xs,
+  },
+  lookupText: {
+    ...typography.caption,
+    flex: 1,
+  },
+  lookupTextFound: {
+    color: colors.success,
+  },
+  lookupTextError: {
+    color: colors.danger,
+  },
+  /** <AppDropdown> has no label of its own, so it gets AppTextField's. */
+  picker: {
+    gap: spacing.xs,
+  },
+  pickerLabel: {
+    ...typography.button,
+    color: colors.textPrimary,
+  },
 
   // --- Footer ---------------------------------------------------------------
   actions: {

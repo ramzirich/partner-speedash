@@ -7,6 +7,7 @@ import React, {
   useState,
 } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +18,8 @@ import {
 } from 'react-native';
 import { AppButton } from '../../components/AppButton';
 import { AppDialog } from '../../components/AppDialog';
+import { AppDropdown } from '../../components/AppDropdown';
+import type { AppDropdownOption } from '../../components/AppDropdown';
 import { AppTextField } from '../../components/AppTextField';
 import { BrandBackdrop } from '../../components/BrandBackdrop';
 import { InlineAlert } from '../../components/InlineAlert';
@@ -24,10 +27,15 @@ import { LiveOrderTracker } from '../../components/LiveOrderTracker';
 import { MotoLoader } from '../../components/MotoLoader';
 import { PhoneField } from '../../components/PhoneField';
 import type { CompletePhone } from '../../components/PhoneField';
-import { ordersApi, toApiError } from '../../api';
-import type { OrderDocument, OrderDocumentStatus } from '../../api';
+import { customersApi, ordersApi, toApiError } from '../../api';
+import type {
+  CustomerAddress,
+  OrderDocument,
+  OrderDocumentStatus,
+} from '../../api';
 import { DEFAULT_COUNTRY_CODE, getCountry } from '../../data';
 import type { Country } from '../../data';
+import { colors } from '../../theme';
 import { useEntranceAnimation } from '../../hooks/useEntranceAnimation';
 import { useIsMounted } from '../../hooks/useIsMounted';
 import { useOrderTracking } from '../../hooks/useOrderTracking';
@@ -43,10 +51,14 @@ const DELIVERY_FEE = 2;
 /** How long the success banner sits there before retiring itself. */
 const SUCCESS_VISIBLE_MS = 4000;
 
+const ADD_NEW_ADDRESS = '__new__';
+
 const EMPTY_FORM = {
   customerPhoneNumber: '',
+  customerName: '',
   description: '',
   googleMapsLink: '',
+  zone: '',
   note: '',
 };
 
@@ -56,11 +68,18 @@ type FormErrors = Partial<Record<FormField, string>>;
 /** Takes the whole form, so a field's rule can depend on its siblings. */
 type Validator = (value: string, values: FormValues) => string | undefined;
 
+/** Where the dropoff fields last got their values from. */
+type LookupStatus = 'idle' | 'loading' | 'found' | 'notFound' | 'error';
+
 /**
  * Only the national part is typed here — the country code comes from the
  * field's picker, so it is never in the string being validated.
  */
 const validatePhone: Validator = value => validateNationalNumber(value);
+
+/** Filled by the lookup when the number is known, by hand when it isn't. */
+const validateName: Validator = value =>
+  value.trim() ? undefined : 'Tell us who is receiving the order.';
 
 /**
  * The address and the link are two ways of saying the same thing, so either one
@@ -84,6 +103,7 @@ const validateMapsLink: Validator = (value, values) => {
 
 const VALIDATORS: Partial<Record<FormField, Validator>> = {
   customerPhoneNumber: validatePhone,
+  customerName: validateName,
   description: validateDescription,
   googleMapsLink: validateMapsLink,
 };
@@ -154,8 +174,10 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
   const entrance = useEntranceAnimation(ENTRANCE_GROUPS);
   const [introEntrance, formEntrance, actionsEntrance] = entrance.groups;
 
+  const nameRef = useRef<TextInput>(null);
   const descriptionRef = useRef<TextInput>(null);
   const linkRef = useRef<TextInput>(null);
+  const zoneRef = useRef<TextInput>(null);
   const noteRef = useRef<TextInput>(null);
 
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
@@ -169,8 +191,14 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
 
   const [createdOrder, setCreatedOrder] = useState<OrderDocument | null>(null);
 
-  const lookupCount = useRef(0);
-  const [lookup, setLookup] = useState({ visible: false, message: '' });
+  /** Dropoffs this customer has been sent to before — empty for a new number. */
+  const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
+  /** Index into `savedAddresses` as a string, or `ADD_NEW_ADDRESS`. */
+  const [addressChoice, setAddressChoice] = useState(ADD_NEW_ADDRESS);
+  const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle');
+  const [lookupMessage, setLookupMessage] = useState('');
+  /** Answers a stale lookup can't overwrite a newer one's. */
+  const lookupRequestId = useRef(0);
 
   const tracking = useOrderTracking(createdOrder?._id, {
     seed: createdOrder,
@@ -188,6 +216,15 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
 
   const valuesRef = useRef(values);
   valuesRef.current = values;
+
+  const autofilledRef = useRef<Partial<FormValues>>({});
+
+  const applyValues = useCallback((patch: Partial<FormValues>): void => {
+    const next = { ...valuesRef.current, ...patch };
+    valuesRef.current = next;
+    setValues(next);
+    setErrors(prev => refreshShownErrors(prev, next));
+  }, []);
 
   const changeHandlers = useMemo(() => {
     const handlers = {} as Record<FormField, (text: string) => void>;
@@ -240,8 +277,10 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
     setSubmitting(true);
 
     const note = values.note.trim();
+    const customerName = values.customerName.trim();
     const description = values.description.trim();
     const googleMapsLink = values.googleMapsLink.trim();
+    const zone = values.zone.trim();
 
     try {
       const created = await ordersApi.create({
@@ -251,6 +290,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
           getCountry(countryCode).dialCode,
           values.customerPhoneNumber,
         ),
+        customerName,
         partnerId,
         deliveryFee: DELIVERY_FEE,
         // Whichever of the two was given — the empty one is left out rather
@@ -258,6 +298,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
         dropoffLocation: {
           ...(description ? { description } : null),
           ...(googleMapsLink ? { googleMapsLink } : null),
+          ...(zone ? { zone } : null),
         },
         note: note || undefined,
       });
@@ -266,6 +307,11 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
       }
       setValues(EMPTY_FORM);
       setCountryCode(DEFAULT_COUNTRY_CODE);
+      autofilledRef.current = {};
+      setSavedAddresses([]);
+      setAddressChoice(ADD_NEW_ADDRESS);
+      setLookupStatus('idle');
+      setLookupMessage('');
       setSuccessMessage('Order created.');
       setCreatedOrder(created);
       onCreated();
@@ -290,29 +336,138 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
     [],
   );
 
-  const handlePhoneComplete = useCallback((phone: CompletePhone) => {
-    lookupCount.current += 1;
-    setLookup({
-      visible: true,
-      message: `Call #${lookupCount.current} — ${phone.e164} (${phone.country.name}, ${phone.national.length} digits).`,
-    });
-  }, []);
+  const autofill = useCallback(
+    (patch: Partial<FormValues>): void => {
+      autofilledRef.current = { ...autofilledRef.current, ...patch };
+      applyValues(patch);
+    },
+    [applyValues],
+  );
 
-  const dismissLookup = useCallback(
-    () => setLookup(prev => ({ ...prev, visible: false })),
-    [],
+  const clearAutofill = useCallback((): void => {
+    const patch: Partial<FormValues> = {};
+    (Object.keys(autofilledRef.current) as FormField[]).forEach(field => {
+      if (valuesRef.current[field] === autofilledRef.current[field]) {
+        patch[field] = '';
+      }
+    });
+    autofilledRef.current = {};
+    if (Object.keys(patch).length > 0) {
+      applyValues(patch);
+    }
+  }, [applyValues]);
+
+  const handlePhoneComplete = useCallback(
+    async (phone: CompletePhone): Promise<void> => {
+      const requestId = lookupRequestId.current + 1;
+      lookupRequestId.current = requestId;
+      setSuccessMessage('');
+      setLookupStatus('loading');
+      setLookupMessage('');
+
+      try {
+        const customer = await customersApi.find(phone.e164);
+        if (!isMounted() || requestId !== lookupRequestId.current) {
+          return;
+        }
+        if (!customer) {
+          clearAutofill();
+          setSavedAddresses([]);
+          setAddressChoice(ADD_NEW_ADDRESS);
+          setLookupStatus('notFound');
+          setLookupMessage('New customer — fill in their details below.');
+          return;
+        }
+
+        const [first] = customer.addresses;
+        setSavedAddresses(customer.addresses);
+        setAddressChoice(first ? '0' : ADD_NEW_ADDRESS);
+        autofill({
+          customerName: customer.name,
+          description: first?.description ?? '',
+          googleMapsLink: first?.googleMapsLink ?? '',
+          zone: first?.zone ?? '',
+        });
+        setLookupStatus('found');
+        setLookupMessage(
+          first
+            ? `${customer.name} — ${customer.addresses.length} saved address${
+                customer.addresses.length === 1 ? '' : 'es'
+              }.`
+            : `${customer.name} — no saved address yet.`,
+        );
+      } catch (error) {
+        if (!isMounted() || requestId !== lookupRequestId.current) {
+          return;
+        }
+        setLookupStatus('error');
+        setLookupMessage(toApiError(error).userMessage);
+      }
+    },
+    [autofill, clearAutofill, isMounted],
+  );
+
+  const handleAddressSelect = useCallback(
+    (choice: string): void => {
+      setAddressChoice(choice);
+      setSuccessMessage('');
+
+      if (choice === ADD_NEW_ADDRESS) {
+        autofill({ description: '', googleMapsLink: '', zone: '' });
+        // The address field only mounts on this state change, so wait a frame.
+        requestAnimationFrame(() => descriptionRef.current?.focus());
+        return;
+      }
+
+      const address = savedAddresses[Number(choice)];
+      if (!address) {
+        return;
+      }
+      autofill({
+        description: address.description,
+        googleMapsLink: address.googleMapsLink,
+        zone: address.zone,
+      });
+    },
+    [autofill, savedAddresses],
   );
 
   const dismissError = useCallback(() => setErrorVisible(false), []);
 
   const handleDismissTracker = useCallback(() => setCreatedOrder(null), []);
 
+  const focusName = useCallback(() => nameRef.current?.focus(), []);
   const focusDescription = useCallback(
     () => descriptionRef.current?.focus(),
     [],
   );
   const focusLink = useCallback(() => linkRef.current?.focus(), []);
+  const focusZone = useCallback(() => zoneRef.current?.focus(), []);
   const focusNote = useCallback(() => noteRef.current?.focus(), []);
+
+  const addressOptions = useMemo<AppDropdownOption[]>(
+    () => [
+      ...savedAddresses.map((address, index) => ({
+        value: String(index),
+        label: address.description,
+      })),
+      { value: ADD_NEW_ADDRESS, label: '+ Add a new address' },
+    ],
+    [savedAddresses],
+  );
+
+  const showAddressPicker = savedAddresses.length > 0;
+  const typingNewAddress =
+    !showAddressPicker || addressChoice === ADD_NEW_ADDRESS;
+
+  const lookupTextStyle = useMemo(
+    () => [
+      styles.lookupText,
+      lookupStatus === 'error' ? styles.lookupTextError : null,
+      lookupStatus === 'found' ? styles.lookupTextFound : null,
+    ],
+    [lookupStatus],
+  );
 
   // Memoized so the entrance groups don't re-allocate a style array on every
   // keystroke — the pane re-renders on each character typed.
@@ -366,22 +521,68 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
               onCountryChange={handleCountryChange}
               onComplete={handlePhoneComplete}
               returnKeyType="next"
-              onSubmitEditing={focusDescription}
+              onSubmitEditing={focusName}
               testID="order-customer-phone"
             />
 
+            {lookupStatus === 'loading' || lookupMessage ? (
+              <View style={styles.lookup} testID="order-customer-lookup">
+                {lookupStatus === 'loading' ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : null}
+                <Text style={lookupTextStyle}>
+                  {lookupStatus === 'loading'
+                    ? 'Looking this number up…'
+                    : lookupMessage}
+                </Text>
+              </View>
+            ) : null}
+
             <AppTextField
-              ref={descriptionRef}
-              label="Dropoff address"
-              value={values.description}
-              onChangeText={changeHandlers.description}
-              onBlur={blurHandlers.description}
-              error={errors.description}
-              placeholder="Hamra Street, Beirut"
+              ref={nameRef}
+              label="Customer name"
+              value={values.customerName}
+              onChangeText={changeHandlers.customerName}
+              onBlur={blurHandlers.customerName}
+              error={errors.customerName}
+              placeholder="Rami Haddad"
+              autoCapitalize="words"
               returnKeyType="next"
-              onSubmitEditing={focusLink}
-              testID="order-dropoff-description"
+              onSubmitEditing={focusDescription}
+              testID="order-customer-name"
             />
+
+            {showAddressPicker ? (
+              <View style={styles.picker}>
+                <Text style={styles.pickerLabel}>Dropoff address</Text>
+                <AppDropdown
+                  options={addressOptions}
+                  value={addressChoice}
+                  placeholder="Choose a saved address"
+                  onSelect={handleAddressSelect}
+                  accessibilityLabel="Dropoff address"
+                  testID="order-dropoff-picker"
+                />
+              </View>
+            ) : null}
+
+            {typingNewAddress ? (
+              <AppTextField
+                ref={descriptionRef}
+                label={
+                  showAddressPicker ? 'New dropoff address' : 'Dropoff address'
+                }
+                value={values.description}
+                onChangeText={changeHandlers.description}
+                onBlur={blurHandlers.description}
+                error={errors.description}
+                placeholder="Hamra Street, Beirut"
+                returnKeyType="next"
+                onSubmitEditing={focusLink}
+                testID="order-dropoff-description"
+              />
+            ) : null}
+
             <AppTextField
               ref={linkRef}
               label="Google Maps link"
@@ -393,8 +594,18 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
               keyboardType="url"
               autoCapitalize="none"
               returnKeyType="next"
-              onSubmitEditing={focusNote}
+              onSubmitEditing={focusZone}
               testID="order-dropoff-link"
+            />
+            <AppTextField
+              ref={zoneRef}
+              label="Zone"
+              value={values.zone}
+              onChangeText={changeHandlers.zone}
+              placeholder="Beirut — Hamra"
+              returnKeyType="next"
+              onSubmitEditing={focusNote}
+              testID="order-dropoff-zone"
             />
 
             <AppTextField
@@ -458,14 +669,6 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
         tone="danger"
         onConfirm={dismissError}
         testID="order-error"
-      />
-
-      <AppDialog
-        visible={lookup.visible}
-        title="API is calling"
-        message={lookup.message}
-        onConfirm={dismissLookup}
-        testID="order-phone-lookup"
       />
     </View>
   );
