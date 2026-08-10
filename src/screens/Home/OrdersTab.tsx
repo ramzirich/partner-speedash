@@ -1,8 +1,16 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   FlatList,
   ListRenderItem,
+  Pressable,
   Text,
   View,
 } from 'react-native';
@@ -42,12 +50,72 @@ const SCROLL_DELAY_MS = 250;
 /** Park the focused card just below the top edge, not flush against it. */
 const SCROLL_VIEW_POSITION = 0.1;
 
+/**
+ * The two lists the tab switches between. "Open" is everything still in play —
+ * waiting on a driver, under way, or called off; delivered is the only status
+ * that leaves it, which is the same split the bottom bar's badge counts.
+ */
+type OrdersSegment = 'open' | 'delivered';
+
+const isDelivered = (order: Order): boolean => order.status === 'done';
+
 const sortByStatus = (orders: Order[]): Order[] =>
   [...orders].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 
+/** Finished orders read best newest-first — an undated one sinks to the bottom. */
+const sortByNewest = (orders: Order[]): Order[] =>
+  [...orders].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+
+interface SegmentButtonProps {
+  label: string;
+  count: number;
+  active: boolean;
+  onPress: () => void;
+  testID?: string;
+}
+
+/** One half of the open/delivered switch: a label with its tally beside it. */
+const SegmentButton: React.FC<SegmentButtonProps> = ({
+  label,
+  count,
+  active,
+  onPress,
+  testID,
+}) => (
+  <Pressable
+    style={({ pressed }) => [
+      styles.segment,
+      active && styles.segmentActive,
+      pressed && styles.segmentPressed,
+    ]}
+    onPress={onPress}
+    accessibilityRole="tab"
+    accessibilityLabel={`${label}, ${count} ${
+      count === 1 ? 'order' : 'orders'
+    }`}
+    accessibilityState={{ selected: active }}
+    testID={testID}
+  >
+    <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]}>
+      {label}
+    </Text>
+    <View style={[styles.segmentCount, active && styles.segmentCountActive]}>
+      <Text
+        style={[
+          styles.segmentCountText,
+          active && styles.segmentCountTextActive,
+        ]}
+      >
+        {count}
+      </Text>
+    </View>
+  </Pressable>
+);
+
 /**
- * Orders tab: a date picker on top, then the selected day's orders as cards
- * (pending pinned to the top). Orders + cancelling are owned by the parent.
+ * Orders tab: a date picker on top, an open/delivered switch under it, then the
+ * selected segment's cards (pending pinned to the top of the open list).
+ * Orders + cancelling are owned by the parent.
  */
 const OrdersTabComponent: React.FC<OrdersTabProps> = ({
   orders,
@@ -62,8 +130,30 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
   const listRef = useRef<FlatList<Order>>(null);
   /** Order already scrolled to, so a later refetch doesn't yank the list back. */
   const scrolledForRef = useRef<string | null>(null);
+  const [segment, setSegment] = useState<OrdersSegment>('open');
 
-  const data = useMemo(() => sortByStatus(orders), [orders]);
+  const openOrders = useMemo(
+    () => sortByStatus(orders.filter(order => !isDelivered(order))),
+    [orders],
+  );
+  const deliveredOrders = useMemo(
+    () => sortByNewest(orders.filter(isDelivered)),
+    [orders],
+  );
+
+  const data = segment === 'open' ? openOrders : deliveredOrders;
+
+  // A notification opens the order it was about — which may well be the
+  // delivery that just landed, i.e. the other list. Follow it there.
+  useEffect(() => {
+    if (!focusOrderId) {
+      return;
+    }
+    const target = orders.find(order => order.id === focusOrderId);
+    if (target) {
+      setSegment(isDelivered(target) ? 'delivered' : 'open');
+    }
+  }, [focusOrderId, orders]);
 
   useEffect(() => {
     if (!focusOrderId || scrolledForRef.current === focusOrderId) {
@@ -102,9 +192,36 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
 
   const keyExtractor = useCallback((item: Order) => item.id, []);
 
+  const showOpen = useCallback(() => setSegment('open'), []);
+  const showDelivered = useCallback(() => setSegment('delivered'), []);
+
+  const emptyText =
+    segment === 'open'
+      ? 'No open orders for these days.'
+      : 'No delivered orders for these days.';
+
   return (
     <View style={styles.container}>
       <CalendarDatePicker value={range} onChange={onRangeChange} />
+
+      {/* Open ⇄ delivered. The count sits on the open side — it's the one
+          that needs watching, and it matches the bottom bar's badge. */}
+      <View style={styles.segments} accessibilityRole="tablist">
+        <SegmentButton
+          label="Open"
+          count={openOrders.length}
+          active={segment === 'open'}
+          onPress={showOpen}
+          testID="orders-segment-open"
+        />
+        <SegmentButton
+          label="Delivered"
+          count={deliveredOrders.length}
+          active={segment === 'delivered'}
+          onPress={showDelivered}
+          testID="orders-segment-delivered"
+        />
+      </View>
 
       <FlatList
         ref={listRef}
@@ -120,9 +237,7 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
             {loading ? (
               <ActivityIndicator color={colors.primary} />
             ) : (
-              <Text style={styles.placeholderText}>
-                {error ?? 'No orders for this day.'}
-              </Text>
+              <Text style={styles.placeholderText}>{error ?? emptyText}</Text>
             )}
           </View>
         }
