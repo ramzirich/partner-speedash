@@ -23,6 +23,7 @@ import { InlineAlert } from '../../components/InlineAlert';
 import { LiveOrderTracker } from '../../components/LiveOrderTracker';
 import { MotoLoader } from '../../components/MotoLoader';
 import { PhoneField } from '../../components/PhoneField';
+import type { CompletePhone } from '../../components/PhoneField';
 import { ordersApi, toApiError } from '../../api';
 import type { OrderDocument, OrderDocumentStatus } from '../../api';
 import { DEFAULT_COUNTRY_CODE, getCountry } from '../../data';
@@ -168,6 +169,9 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
 
   const [createdOrder, setCreatedOrder] = useState<OrderDocument | null>(null);
 
+  const lookupCount = useRef(0);
+  const [lookup, setLookup] = useState({ visible: false, message: '' });
+
   const tracking = useOrderTracking(createdOrder?._id, {
     seed: createdOrder,
     onStatusChange: onTrackedStatusChange,
@@ -286,6 +290,19 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
     [],
   );
 
+  const handlePhoneComplete = useCallback((phone: CompletePhone) => {
+    lookupCount.current += 1;
+    setLookup({
+      visible: true,
+      message: `Call #${lookupCount.current} — ${phone.e164} (${phone.country.name}, ${phone.national.length} digits).`,
+    });
+  }, []);
+
+  const dismissLookup = useCallback(
+    () => setLookup(prev => ({ ...prev, visible: false })),
+    [],
+  );
+
   const dismissError = useCallback(() => setErrorVisible(false), []);
 
   const handleDismissTracker = useCallback(() => setCreatedOrder(null), []);
@@ -347,6 +364,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
               placeholder="70 123 456"
               countryCode={countryCode}
               onCountryChange={handleCountryChange}
+              onComplete={handlePhoneComplete}
               returnKeyType="next"
               onSubmitEditing={focusDescription}
               testID="order-customer-phone"
@@ -440,6 +458,14 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
         tone="danger"
         onConfirm={dismissError}
         testID="order-error"
+      />
+
+      <AppDialog
+        visible={lookup.visible}
+        title="API is calling"
+        message={lookup.message}
+        onConfirm={dismissLookup}
+        testID="order-phone-lookup"
       />
     </View>
   );

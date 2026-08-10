@@ -2,6 +2,7 @@
  * Helpers for the split phone input: a country dial code on one side, the
  * national number on the other. The gateway wants them joined in E.164.
  */
+import type { Country } from '../data';
 
 /** Shortest and longest national number we accept, digits only. */
 const MIN_NATIONAL_DIGITS = 6;
@@ -41,3 +42,8 @@ export const validateNationalNumber = (
   }
   return undefined;
 };
+
+export const isCompleteNationalNumber = (
+  value: string,
+  country: Country,
+): boolean => country.nsnLengths.includes(toNationalDigits(value).length);
