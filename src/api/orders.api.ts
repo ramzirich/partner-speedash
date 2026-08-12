@@ -245,6 +245,12 @@ export interface OrderDocument {
   updatedAt?: string;
 }
 
+export interface ZoneDocument {
+  _id: string;
+  name: string;
+  type: string;
+}
+
 const toDecimalAmount = (
   fee: Decimal128Json | string | number | null | undefined,
 ): number => {
@@ -505,7 +511,10 @@ export interface CancelOrderRequest {
 const gatewayUrl = (path: string): string =>
   `${ENV.socketUrl.replace(/\/$/, '')}${path}`;
 
+const httpUrl = (path: string): string => `${ENV.apiBaseUrl}${path}`;
+
 const ordersUrl = (): string => gatewayUrl('/orders');
+const zonesUrl = (): string => httpUrl('/zones/dropoff');
 
 const statusUrl = (orderId: string): string =>
   gatewayUrl(`/orders/${encodeURIComponent(orderId)}/status`);
@@ -574,6 +583,15 @@ export interface CreateOrderRequest {
   note?: string;
 }
 
+export const zonesApi = {
+  async getDropoff(): Promise<Array<ZoneDocument> | null> {
+    const res: Array<ZoneDocument> = await apiRequest<Array<ZoneDocument>>(zonesUrl(), {
+      method: 'GET',
+    });
+    return res ?? null;
+  },
+};
+
 export const ordersApi = {
   async create(input: CreateOrderRequest): Promise<OrderDocument | null> {
     if (ENV.useMockApi) {
@@ -612,9 +630,7 @@ export const ordersApi = {
     return (res.data ?? []).map(fromListItem);
   },
 
-  async historyDocuments(
-    range: OrderHistoryRequest,
-  ): Promise<OrderDocument[]> {
+  async historyDocuments(range: OrderHistoryRequest): Promise<OrderDocument[]> {
     if (ENV.useMockApi) {
       // The mock is a fixed showcase set, so the range is ignored here.
       await delay(MOCK_LATENCY_MS);

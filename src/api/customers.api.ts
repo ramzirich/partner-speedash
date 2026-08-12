@@ -172,9 +172,8 @@ export const customersApi = {
     }
 
     try {
-      const res = await apiRequest<unknown>('/api/findCustomer', {
+      const res = await apiRequest<unknown>(`/api/customers${phoneNumber}`, {
         method: 'POST',
-        body: JSON.stringify({ phoneNumber }),
       });
       return toLookup(pickPayload(res));
     } catch (error) {
