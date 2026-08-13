@@ -6,7 +6,12 @@ export {
   setRefreshToken,
 } from './authToken';
 export { authApi, OTP_LENGTH } from './auth.api';
-export { ordersApi, fromOrderDocument, toDayUnix } from './orders.api';
+export {
+  ordersApi,
+  zonesApi,
+  fromOrderDocument,
+  toDayUnix,
+} from './orders.api';
 export { customersApi } from './customers.api';
 export { locationApi } from './location.api';
 export {
@@ -24,12 +29,7 @@ export {
   releaseSocket,
   resyncSocket,
 } from './socket';
-export {
-  ApiError,
-  NetworkError,
-  TimeoutError,
-  toApiError,
-} from './errors';
+export { ApiError, NetworkError, TimeoutError, toApiError } from './errors';
 export type { ApiErrorCode } from './errors';
 export type {
   UserRole,
@@ -61,7 +61,9 @@ export type {
   UpdateOrderStatusRequest,
   OrderStatusUpdate,
   CancelOrderRequest,
+  CreateOrderDropoff,
   CreateOrderRequest,
+  ZoneDocument,
 } from './orders.api';
 export type {
   AppSocket,
@@ -77,6 +79,7 @@ export type {
   ReportLocationResponse,
 } from './location.api';
 export type {
+  ApiCustomerLocation,
   CustomerAddress,
   CustomerLookup,
   FindCustomerResponse,

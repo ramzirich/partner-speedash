@@ -12,6 +12,7 @@ import { styles } from './LiveOrderTracker.styles';
 
 const ICON_SIZE = 16;
 const AVATAR_ICON_SIZE = 18;
+const PHONE_ICON_SIZE = 13;
 
 const toSeconds = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -142,6 +143,22 @@ const LiveOrderTrackerComponent: React.FC<LiveOrderTrackerProps> = ({
               <Text style={styles.driverName} numberOfLines={1}>
                 {driver?.name ?? 'Assigned'}
               </Text>
+              {driverPhone ? (
+                <View style={styles.driverPhoneRow}>
+                  <Ionicons
+                    name="logo-whatsapp"
+                    size={PHONE_ICON_SIZE}
+                    color={colors.whatsapp}
+                  />
+                  <Text
+                    style={styles.driverPhone}
+                    numberOfLines={1}
+                    testID={`${testID}-driver-phone`}
+                  >
+                    {driverPhone}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
 

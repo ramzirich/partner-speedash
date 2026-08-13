@@ -17,6 +17,8 @@ import {
 import { CalendarDatePicker } from '../../components/CalendarDatePicker';
 import type { DateRange } from '../../components/CalendarDatePicker';
 import { Order, OrderCard, OrderStatus } from '../../components/OrderCard';
+import { OrderDetailsSheet } from '../../components/OrderDetailsSheet';
+import type { OrderDocument, OrderDocumentStatus } from '../../api';
 import { colors } from '../../theme';
 import { styles } from './OrdersTab.styles';
 
@@ -24,20 +26,17 @@ export interface OrdersTabProps {
   orders: Order[];
   loading?: boolean;
   error?: string | null;
-  /**
-   * Order the partner came here to see (tapped its notification) — scrolled
-   * into view once it exists in the list.
-   */
   focusOrderId?: string | null;
-  /** Order whose cancel is in flight — its card shows a busy button. */
   cancelingOrderId?: string | null;
-  /** Days the list covers. Owned by the screen — it drives the fetch. */
   range: DateRange;
   onRangeChange: (range: DateRange) => void;
   onCancel: (order: Order) => void;
+  onTrackedStatusChange?: (
+    status: OrderDocumentStatus,
+    order: OrderDocument,
+  ) => void;
 }
 
-/** Display order: pending first, then on-delivery, then the rest. */
 const STATUS_ORDER: Record<OrderStatus, number> = {
   pending: 0,
   on_delivery: 1,
@@ -45,16 +44,9 @@ const STATUS_ORDER: Record<OrderStatus, number> = {
   rejected: 3,
 };
 
-/** Let the list mount/settle before scrolling to the notified order. */
 const SCROLL_DELAY_MS = 250;
-/** Park the focused card just below the top edge, not flush against it. */
 const SCROLL_VIEW_POSITION = 0.1;
 
-/**
- * The two lists the tab switches between. "Open" is everything still in play —
- * waiting on a driver, under way, or called off; delivered is the only status
- * that leaves it, which is the same split the bottom bar's badge counts.
- */
 type OrdersSegment = 'open' | 'delivered';
 
 const isDelivered = (order: Order): boolean => order.status === 'done';
@@ -62,7 +54,6 @@ const isDelivered = (order: Order): boolean => order.status === 'done';
 const sortByStatus = (orders: Order[]): Order[] =>
   [...orders].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 
-/** Finished orders read best newest-first — an undated one sinks to the bottom. */
 const sortByNewest = (orders: Order[]): Order[] =>
   [...orders].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 
@@ -74,7 +65,6 @@ interface SegmentButtonProps {
   testID?: string;
 }
 
-/** One half of the open/delivered switch: a label with its tally beside it. */
 const SegmentButton: React.FC<SegmentButtonProps> = ({
   label,
   count,
@@ -112,11 +102,6 @@ const SegmentButton: React.FC<SegmentButtonProps> = ({
   </Pressable>
 );
 
-/**
- * Orders tab: a date picker on top, an open/delivered switch under it, then the
- * selected segment's cards (pending pinned to the top of the open list).
- * Orders + cancelling are owned by the parent.
- */
 const OrdersTabComponent: React.FC<OrdersTabProps> = ({
   orders,
   loading = false,
@@ -126,11 +111,12 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
   range,
   onRangeChange,
   onCancel,
+  onTrackedStatusChange,
 }) => {
   const listRef = useRef<FlatList<Order>>(null);
-  /** Order already scrolled to, so a later refetch doesn't yank the list back. */
   const scrolledForRef = useRef<string | null>(null);
   const [segment, setSegment] = useState<OrdersSegment>('open');
+  const [detailsOrderId, setDetailsOrderId] = useState<string | null>(null);
 
   const openOrders = useMemo(
     () => sortByStatus(orders.filter(order => !isDelivered(order))),
@@ -143,8 +129,6 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
 
   const data = segment === 'open' ? openOrders : deliveredOrders;
 
-  // A notification opens the order it was about — which may well be the
-  // delivery that just landed, i.e. the other list. Follow it there.
   useEffect(() => {
     if (!focusOrderId) {
       return;
@@ -164,7 +148,6 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
       return;
     }
     scrolledForRef.current = focusOrderId;
-    // One frame's grace: the FlatList has just mounted with this tab.
     const timer = setTimeout(() => {
       listRef.current?.scrollToIndex({
         index,
@@ -179,15 +162,23 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, []);
 
+  const handleShowDetails = useCallback(
+    (order: Order) => setDetailsOrderId(order.id),
+    [],
+  );
+
+  const handleCloseDetails = useCallback(() => setDetailsOrderId(null), []);
+
   const renderItem = useCallback<ListRenderItem<Order>>(
     ({ item }) => (
       <OrderCard
         order={item}
         onCancel={onCancel}
+        onShowDetails={isDelivered(item) ? undefined : handleShowDetails}
         canceling={item.id === cancelingOrderId}
       />
     ),
-    [onCancel, cancelingOrderId],
+    [onCancel, handleShowDetails, cancelingOrderId],
   );
 
   const keyExtractor = useCallback((item: Order) => item.id, []);
@@ -204,8 +195,6 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
     <View style={styles.container}>
       <CalendarDatePicker value={range} onChange={onRangeChange} />
 
-      {/* Open ⇄ delivered. The count sits on the open side — it's the one
-          that needs watching, and it matches the bottom bar's badge. */}
       <View style={styles.segments} accessibilityRole="tablist">
         <SegmentButton
           label="Open"
@@ -241,6 +230,12 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
             )}
           </View>
         }
+      />
+
+      <OrderDetailsSheet
+        orderId={detailsOrderId}
+        onClose={handleCloseDetails}
+        onStatusChange={onTrackedStatusChange}
       />
     </View>
   );

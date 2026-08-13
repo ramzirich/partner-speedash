@@ -36,19 +36,15 @@ import type {
 import { DEFAULT_COUNTRY_CODE, getCountry } from '../../data';
 import type { Country } from '../../data';
 import { colors } from '../../theme';
+import { useDropoffZones } from '../../hooks/useDropoffZones';
 import { useEntranceAnimation } from '../../hooks/useEntranceAnimation';
 import { useIsMounted } from '../../hooks/useIsMounted';
 import { useOrderTracking } from '../../hooks/useOrderTracking';
 import { toE164, validateNationalNumber } from '../../utils/phone';
 import { styles } from './CreateOrderTab.styles';
 
-/** Content groups that stagger in: intro, form, actions. */
 const ENTRANCE_GROUPS = 3;
 
-/** Flat fee on every order until pricing is a real input. */
-const DELIVERY_FEE = 2;
-
-/** How long the success banner sits there before retiring itself. */
 const SUCCESS_VISIBLE_MS = 4000;
 
 const ADD_NEW_ADDRESS = '__new__';
@@ -58,42 +54,29 @@ const EMPTY_FORM = {
   customerName: '',
   description: '',
   googleMapsLink: '',
-  zone: '',
+  zoneId: '',
   note: '',
 };
 
 type FormValues = typeof EMPTY_FORM;
 type FormField = keyof FormValues;
 type FormErrors = Partial<Record<FormField, string>>;
-/** Takes the whole form, so a field's rule can depend on its siblings. */
 type Validator = (value: string, values: FormValues) => string | undefined;
 
-/** Where the dropoff fields last got their values from. */
 type LookupStatus = 'idle' | 'loading' | 'found' | 'notFound' | 'error';
 
-/**
- * Only the national part is typed here — the country code comes from the
- * field's picker, so it is never in the string being validated.
- */
 const validatePhone: Validator = value => validateNationalNumber(value);
 
-/** Filled by the lookup when the number is known, by hand when it isn't. */
 const validateName: Validator = value =>
   value.trim() ? undefined : 'Tell us who is receiving the order.';
 
-/**
- * The address and the link are two ways of saying the same thing, so either one
- * on its own is enough — each is only required when the other is empty.
- */
-const NEED_A_DROPOFF = 'Give a dropoff address or a Google Maps link.';
+const validateDescription: Validator = value =>
+  value.trim() ? undefined : 'Give the dropoff address.';
 
-const validateDescription: Validator = (value, values) =>
-  value.trim() || values.googleMapsLink.trim() ? undefined : NEED_A_DROPOFF;
-
-const validateMapsLink: Validator = (value, values) => {
+const validateMapsLink: Validator = value => {
   const trimmed = value.trim();
   if (!trimmed) {
-    return values.description.trim() ? undefined : NEED_A_DROPOFF;
+    return 'Paste the Google Maps link for the dropoff.';
   }
   if (!/^https?:\/\/\S+$/.test(trimmed)) {
     return 'Paste the full link, e.g. https://maps.google.com/?q=33.8938,35.5018.';
@@ -101,11 +84,15 @@ const validateMapsLink: Validator = (value, values) => {
   return undefined;
 };
 
+const validateZone: Validator = value =>
+  value.trim() ? undefined : 'Pick the zone this dropoff falls in.';
+
 const VALIDATORS: Partial<Record<FormField, Validator>> = {
   customerPhoneNumber: validatePhone,
   customerName: validateName,
   description: validateDescription,
   googleMapsLink: validateMapsLink,
+  zoneId: validateZone,
 };
 
 const validateForm = (values: FormValues): FormErrors => {
@@ -119,11 +106,6 @@ const validateForm = (values: FormValues): FormErrors => {
   return errors;
 };
 
-/**
- * Re-check the fields already showing an error, and only those. Typing can
- * clear an error — including the paired dropoff field's, which an edit to its
- * partner may have just satisfied — but never raises a new one mid-word.
- */
 const refreshShownErrors = (
   shown: FormErrors,
   values: FormValues,
@@ -142,13 +124,8 @@ const refreshShownErrors = (
 };
 
 export interface CreateOrderTabProps {
-  /** The signed-in partner the order is raised for. */
-  partnerId?: string;
-  /** One-line status of the fetched history, shown under the intro. */
   summary: string;
-  /** Renders `summary` in the danger tint — the fetch failed. */
   summaryIsError?: boolean;
-  /** A new order landed server-side; the shell refetches on this. */
   onCreated: () => void;
   onTrackedStatusChange?: (
     status: OrderDocumentStatus,
@@ -156,15 +133,7 @@ export interface CreateOrderTabProps {
   ) => void;
 }
 
-/**
- * Home's first pane: raise a delivery.
- *
- * `POST /orders` on the gateway takes the customer and where the parcel is
- * going — the pickup side is filled in server-side from the partner's own saved
- * location, so the form never asks for it.
- */
 const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
-  partnerId,
   summary,
   summaryIsError = false,
   onCreated,
@@ -177,11 +146,16 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
   const nameRef = useRef<TextInput>(null);
   const descriptionRef = useRef<TextInput>(null);
   const linkRef = useRef<TextInput>(null);
-  const zoneRef = useRef<TextInput>(null);
   const noteRef = useRef<TextInput>(null);
 
+  const {
+    zones,
+    loading: zonesLoading,
+    error: zonesError,
+    reload: reloadZones,
+  } = useDropoffZones();
+
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
-  /** ISO code behind the phone field's flag — Lebanon until changed. */
   const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -191,13 +165,10 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
 
   const [createdOrder, setCreatedOrder] = useState<OrderDocument | null>(null);
 
-  /** Dropoffs this customer has been sent to before — empty for a new number. */
   const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
-  /** Index into `savedAddresses` as a string, or `ADD_NEW_ADDRESS`. */
   const [addressChoice, setAddressChoice] = useState(ADD_NEW_ADDRESS);
   const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle');
   const [lookupMessage, setLookupMessage] = useState('');
-  /** Answers a stale lookup can't overwrite a newer one's. */
   const lookupRequestId = useRef(0);
 
   const tracking = useOrderTracking(createdOrder?._id, {
@@ -205,7 +176,6 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
     onStatusChange: onTrackedStatusChange,
   });
 
-  // The banner is a confirmation, not a state — it steps aside on its own.
   useEffect(() => {
     if (!successMessage) {
       return;
@@ -256,22 +226,12 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
   }, []);
 
   const handleSubmit = useCallback(async (): Promise<void> => {
-    // Fields first: what's wrong with the form is fixable here, so say it before
-    // raising a dialog about the session.
     const nextErrors = validateForm(values);
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
     }
 
-    if (!partnerId) {
-      setErrorContent({
-        title: 'Could not create order',
-        message: 'We could not identify your partner account. Sign in again.',
-      });
-      setErrorVisible(true);
-      return;
-    }
     setErrors({});
     setSuccessMessage('');
     setSubmitting(true);
@@ -280,26 +240,16 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
     const customerName = values.customerName.trim();
     const description = values.description.trim();
     const googleMapsLink = values.googleMapsLink.trim();
-    const zone = values.zone.trim();
+    const zoneId = values.zoneId.trim();
 
     try {
       const created = await ordersApi.create({
-        // The gateway wants one E.164 string, so the picked dial code and the
-        // typed national number are joined only at the edge.
         customerPhoneNumber: toE164(
           getCountry(countryCode).dialCode,
           values.customerPhoneNumber,
         ),
         customerName,
-        partnerId,
-        deliveryFee: DELIVERY_FEE,
-        // Whichever of the two was given — the empty one is left out rather
-        // than sent as an empty string.
-        dropoffLocation: {
-          ...(description ? { description } : null),
-          ...(googleMapsLink ? { googleMapsLink } : null),
-          ...(zone ? { zone } : null),
-        },
+        dropoffLocation: { zoneId, description, googleMapsLink },
         note: note || undefined,
       });
       if (!isMounted()) {
@@ -329,7 +279,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
         setSubmitting(false);
       }
     }
-  }, [partnerId, values, countryCode, isMounted, onCreated]);
+  }, [values, countryCode, isMounted, onCreated]);
 
   const handleCountryChange = useCallback(
     (country: Country) => setCountryCode(country.code),
@@ -386,7 +336,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
           customerName: customer.name,
           description: first?.description ?? '',
           googleMapsLink: first?.googleMapsLink ?? '',
-          zone: first?.zone ?? '',
+          zoneId: first?.zoneId ?? '',
         });
         setLookupStatus('found');
         setLookupMessage(
@@ -413,8 +363,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
       setSuccessMessage('');
 
       if (choice === ADD_NEW_ADDRESS) {
-        autofill({ description: '', googleMapsLink: '', zone: '' });
-        // The address field only mounts on this state change, so wait a frame.
+        autofill({ description: '', googleMapsLink: '', zoneId: '' });
         requestAnimationFrame(() => descriptionRef.current?.focus());
         return;
       }
@@ -426,7 +375,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
       autofill({
         description: address.description,
         googleMapsLink: address.googleMapsLink,
-        zone: address.zone,
+        zoneId: address.zoneId,
       });
     },
     [autofill, savedAddresses],
@@ -442,7 +391,6 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
     [],
   );
   const focusLink = useCallback(() => linkRef.current?.focus(), []);
-  const focusZone = useCallback(() => zoneRef.current?.focus(), []);
   const focusNote = useCallback(() => noteRef.current?.focus(), []);
 
   const addressOptions = useMemo<AppDropdownOption[]>(
@@ -456,9 +404,25 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
     [savedAddresses],
   );
 
+  const zoneOptions = useMemo<AppDropdownOption[]>(
+    () => zones.map(zone => ({ value: zone._id, label: zone.name })),
+    [zones],
+  );
+
   const showAddressPicker = savedAddresses.length > 0;
   const typingNewAddress =
     !showAddressPicker || addressChoice === ADD_NEW_ADDRESS;
+
+  const zonePlaceholder = zonesLoading
+    ? 'Loading zones…'
+    : zoneOptions.length > 0
+    ? 'Choose a zone'
+    : 'No zones available';
+
+  const zoneErrorStyle = useMemo(
+    () => [styles.lookupText, styles.lookupTextError],
+    [],
+  );
 
   const lookupTextStyle = useMemo(
     () => [
@@ -469,8 +433,6 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
     [lookupStatus],
   );
 
-  // Memoized so the entrance groups don't re-allocate a style array on every
-  // keystroke — the pane re-renders on each character typed.
   const introStyle = useMemo(
     () => [styles.intro, introEntrance],
     [introEntrance],
@@ -487,7 +449,6 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Landing/Sign In's wash blobs, so the pane sits on the same surface. */}
       <BrandBackdrop />
 
       <KeyboardAvoidingView
@@ -594,19 +555,38 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
               keyboardType="url"
               autoCapitalize="none"
               returnKeyType="next"
-              onSubmitEditing={focusZone}
+              onSubmitEditing={focusNote}
               testID="order-dropoff-link"
             />
-            <AppTextField
-              ref={zoneRef}
-              label="Zone"
-              value={values.zone}
-              onChangeText={changeHandlers.zone}
-              placeholder="Beirut — Hamra"
-              returnKeyType="next"
-              onSubmitEditing={focusNote}
-              testID="order-dropoff-zone"
-            />
+
+            <View style={styles.picker}>
+              <Text style={styles.pickerLabel}>Zone</Text>
+              <AppDropdown
+                options={zoneOptions}
+                value={values.zoneId}
+                placeholder={zonePlaceholder}
+                onSelect={changeHandlers.zoneId}
+                disabled={zonesLoading}
+                accessibilityLabel="Zone"
+                testID="order-dropoff-zone"
+              />
+              {zonesError ? (
+                <Text
+                  style={zoneErrorStyle}
+                  onPress={reloadZones}
+                  testID="order-dropoff-zone-error"
+                >
+                  {zonesError} Tap to retry.
+                </Text>
+              ) : errors.zoneId ? (
+                <Text
+                  style={zoneErrorStyle}
+                  testID="order-dropoff-zone-message"
+                >
+                  {errors.zoneId}
+                </Text>
+              ) : null}
+            </View>
 
             <AppTextField
               ref={noteRef}

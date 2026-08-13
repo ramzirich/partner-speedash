@@ -108,6 +108,17 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textPrimary,
   },
+  driverPhoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  driverPhone: {
+    ...typography.button,
+    fontSize: 13,
+    flexShrink: 1,
+    color: colors.textSecondary,
+  },
   contactButton: {
     flexDirection: 'row',
     alignItems: 'center',

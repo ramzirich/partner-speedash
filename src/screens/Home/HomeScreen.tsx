@@ -45,14 +45,8 @@ import { styles } from './HomeScreen.styles';
 
 const LOGOUT_ICON_SIZE = 20;
 
-/** The rolling window the create pane's summary line counts over. */
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/**
- * Yesterday → today. Two calendar days because the history endpoint rounds its
- * bounds out to whole UTC days — it's the smallest request guaranteed to
- * contain the last 24 hours.
- */
 const defaultRange = (): DateRange => {
   const today = todayDateString();
   return { start: addDays(today, -1), end: today };
@@ -92,12 +86,6 @@ const getGreeting = (): string => {
 const capitalize = (value: string): string =>
   value.charAt(0).toUpperCase() + value.slice(1);
 
-/**
- * Home shell: a content area that swaps with the active bottom button, plus the
- * bottom bar itself. Orders state lives here (not in OrdersTab) so the open
- * count can badge the Orders button and survive tab switches — and so the
- * create pane can refetch into the same list after raising an order.
- */
 const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const isMounted = useIsMounted();
   const dispatch = useAppDispatch();
@@ -113,12 +101,8 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const greeting = getGreeting();
   const displayName = firstName ? capitalize(firstName) : 'Partner';
 
-  // The socket follows the session: it dials for a signed-in partner and closes
-  // on sign-out. Nothing subscribes to it yet.
   useDriverSocket(partnerId);
 
-  // Ask once, on the way in — Android 13+ won't post anything without the
-  // runtime grant, and asking at delivery time would be too late to show it.
   useEffect(() => {
     initOrderNotifications();
     startNotificationPressRouting();
@@ -129,18 +113,11 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [focusOrderId, setFocusOrderId] = useState<string | null>(null);
-  /** The order the confirm dialog is asking about, if any. */
   const [pendingCancel, setPendingCancel] = useState<Order | null>(null);
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState('');
   const ordersRequestRef = useRef(0);
 
-  /**
-   * `POST /api/order/history` for the selected days — the one fetch behind both
-   * tabs. Every call takes a ticket so a slow earlier response can never
-   * overwrite a newer one, and `silent` skips the spinner for background
-   * refetches (the list on screen stays put until fresh data lands).
-   */
   const refreshOrders = useCallback(
     async (silent = false): Promise<void> => {
       const requestId = ordersRequestRef.current + 1;
@@ -172,41 +149,24 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     [isMounted, range.start, range.end],
   );
 
-  // Initial load, and again whenever the partner picks a different range —
-  // `refreshOrders` is keyed to it.
   useEffect(() => {
     refreshOrders();
   }, [refreshOrders]);
 
-  /** A new order belongs to the fetched window — pull the server's version. */
   const handleOrderCreated = useCallback(() => {
     refreshOrders(true);
   }, [refreshOrders]);
 
-  /**
-   * A tapped notification opens the order it was about. The target may predate
-   * this screen — a press from a killed app is recorded before React mounts —
-   * so subscribing is also what collects anything already waiting.
-   */
   useEffect(() => {
     return onOrderNotificationPress(orderId => {
       setActiveKey('orders');
       setFocusOrderId(orderId);
-      // The order moved while we were away; the list on screen predates it.
       refreshOrders(true);
     });
   }, [refreshOrders]);
 
-  /**
-   * Last status seen per order, so the same transition arriving twice — a
-   * socket push and the history refetch behind it — only notifies once.
-   */
   const announcedRef = useRef<Map<string, string>>(new Map());
 
-  /**
-   * Delivery raises a system notification; every other transition is silent —
-   * it's already visible on the card and in the tracker.
-   */
   const announceStatus = useCallback((order: OrderDocument): void => {
     const status = order.status as OrderDocumentStatus;
     if (announcedRef.current.get(order._id) === status) {
@@ -227,7 +187,6 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     [refreshOrders, announceStatus],
   );
 
-  /** Every order on screen that can still move — the rooms worth joining. */
   const liveOrderIds = useMemo(
     () =>
       orders
@@ -250,7 +209,6 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
 
   useOrdersRealtime(liveOrderIds, handleLiveOrder);
 
-  /** Tapping Cancel only opens the dialog — nothing is sent until it's confirmed. */
   const handleCancelRequest = useCallback(
     (order: Order) => setPendingCancel(order),
     [],
@@ -258,12 +216,6 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
 
   const handleCancelDismiss = useCallback(() => setPendingCancel(null), []);
 
-  /**
-   * `PATCH /orders/:id/status` with `newStatus: 'CANCELED'`. The card only
-   * offers this while the parcel is still in nobody's hands, and the gateway
-   * refuses a delivered or already canceled order, so a rejection here is worth
-   * showing.
-   */
   const handleCancelConfirm = useCallback(async (): Promise<void> => {
     const order = pendingCancel;
     if (!order) {
@@ -288,8 +240,6 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
       }
       setOrdersError(null);
       setPendingCancel(null);
-      // The response only covers this order — a silent refetch also picks up
-      // whatever else the cancellation freed up server-side.
       await refreshOrders(true);
     } catch (err) {
       if (isMounted()) {
@@ -305,13 +255,6 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
 
   const dismissCancelError = useCallback(() => setCancelError(''), []);
 
-  /**
-   * The create pane's one line about the history: how many orders were raised
-   * in the last 24 hours. The window is applied here, not in the request — the
-   * endpoint widens whatever bounds it's given to whole UTC days, so the fetch
-   * pulls two of them and this trims it back to a rolling day. An order with no
-   * timestamp can't be placed in the window, so it doesn't count.
-   */
   const recentCount = useMemo(() => {
     const cutoff = Date.now() - DAY_MS;
     return orders.filter(order => (order.createdAt ?? 0) >= cutoff).length;
@@ -339,11 +282,7 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
       if (refreshToken) {
         await authApi.logout({ refreshToken, allDevices: false });
       }
-    } catch {
-      // Ignore — the local sign-out below must always succeed.
-    }
-    // The screen is about to be torn down by the reset, but the dialog and the
-    // spinner are still mounted right now — don't setState if it isn't.
+    } catch {}
     if (!isMounted()) {
       return;
     }
@@ -358,11 +297,6 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     [],
   );
 
-  /**
-   * Every order in the fetched range that hasn't been delivered — waiting on a
-   * driver, under way, or called off. Delivered is the only status that drops
-   * out, and the badge shows the exact figure rather than capping at "9+".
-   */
   const openCount = orders.filter(o => o.status !== 'done').length;
 
   const headerStyle = useMemo(
@@ -388,7 +322,6 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Top bar: time-based greeting + partner name, sign-out on the right. */}
       <Animated.View style={headerStyle}>
         <View pointerEvents="none" style={styles.headerBackdrop}>
           <View style={styles.headerBlob} />
@@ -424,11 +357,9 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
         </Pressable>
       </Animated.View>
 
-      {/* Content switches with the active bottom button. */}
       <View style={styles.content}>
         {activeKey === 'home' ? (
           <CreateOrderTab
-            partnerId={partnerId}
             summary={ordersSummary}
             summaryIsError={ordersError !== null}
             onCreated={handleOrderCreated}
@@ -444,11 +375,11 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
             range={range}
             onRangeChange={setRange}
             onCancel={handleCancelRequest}
+            onTrackedStatusChange={handleTrackedStatusChange}
           />
         )}
       </View>
 
-      {/* Bottom bar */}
       <Animated.View style={tabBarStyle} accessibilityRole="tablist">
         {TABS.map(tab => (
           <TabBarButton

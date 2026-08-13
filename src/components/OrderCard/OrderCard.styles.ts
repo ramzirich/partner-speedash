@@ -1,7 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { colors, radius, spacing, typography } from '../../theme';
 
-/** Styles for <OrderCard>. Separate file per convention. */
 export const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.background,
@@ -23,7 +22,6 @@ export const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  /** Delivery fee over the order id, right-aligned against the status tag. */
   headerMeta: {
     alignItems: 'flex-end',
   },
@@ -45,7 +43,6 @@ export const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
-  // Status tag.
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -64,7 +61,6 @@ export const styles = StyleSheet.create({
     fontSize: 11,
   },
 
-  // Drop-off.
   place: {
     gap: 2,
   },
@@ -73,7 +69,6 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textPrimary,
   },
-  /** The same block, in a tint, when there's a maps link behind it. */
   navigateButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -100,7 +95,6 @@ export const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
-  // Driver — same shape as the customer row below it.
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -135,7 +129,6 @@ export const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
 
-  // Customer.
   customerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -161,9 +154,10 @@ export const styles = StyleSheet.create({
   customerPhone: {
     ...typography.button,
     fontSize: 14,
-    // Not the WhatsApp green: at this size it fails contrast on `surface`, so
-    // the brand colour stays on the icon beside it.
     color: colors.textPrimary,
+  },
+  actions: {
+    gap: spacing.sm,
   },
 
   pressed: {

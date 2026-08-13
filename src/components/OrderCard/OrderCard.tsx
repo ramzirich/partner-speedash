@@ -40,7 +40,6 @@ export interface Order {
   pickupCoordinates?: OrderCoordinates;
 
   customerPhone?: string;
-  /** Short line under the addresses — e.g. the offer message from the server. */
   note?: string;
   progress?: OrderProgress;
   createdAt?: number;
@@ -54,7 +53,6 @@ const STATUS_META: Record<OrderStatus, { label: string; color: string }> = {
   rejected: { label: 'Canceled', color: colors.danger },
 };
 
-/** The live step, spelled out — more use to a partner than "on delivery". */
 const PROGRESS_LABEL: Partial<Record<OrderProgress, string>> = {
   PENDING: 'Finding a driver',
   ASSIGNED: 'Driver assigned',
@@ -72,12 +70,14 @@ const formatMoney = (amount: number | undefined, currency: string): string =>
 export interface OrderCardProps {
   order: Order;
   onCancel?: (order: Order) => void;
+  onShowDetails?: (order: Order) => void;
   canceling?: boolean;
 }
 
 const OrderCardComponent: React.FC<OrderCardProps> = ({
   order,
   onCancel,
+  onShowDetails,
   canceling = false,
 }) => {
   const status = STATUS_META[order.status];
@@ -99,13 +99,16 @@ const OrderCardComponent: React.FC<OrderCardProps> = ({
 
   const handleOpenMap = useCallback(() => {
     if (dropoffLink) {
-      Linking.openURL(dropoffLink).catch(() => {
-        // No Maps app and no browser — nothing to fall back to.
-      });
+      Linking.openURL(dropoffLink).catch(() => {});
     }
   }, [dropoffLink]);
 
   const handleCancel = useCallback(() => onCancel?.(order), [onCancel, order]);
+
+  const handleShowDetails = useCallback(
+    () => onShowDetails?.(order),
+    [onShowDetails, order],
+  );
 
   const cardStyle = useMemo(
     () => [styles.card, { borderLeftColor: status.color }],
@@ -126,7 +129,6 @@ const OrderCardComponent: React.FC<OrderCardProps> = ({
 
   return (
     <View style={cardStyle}>
-      {/* Top: where it stands ↔ what it costs, with the id underneath. */}
       <View style={styles.headerRow}>
         <View style={tagStyle}>
           <View style={dotStyle} />
@@ -146,8 +148,6 @@ const OrderCardComponent: React.FC<OrderCardProps> = ({
         </View>
       </View>
 
-      {/* Drop-off. A button when the order carries a maps link, otherwise the
-          same line without the affordance. */}
       {dropoffLink ? (
         <Pressable
           style={({ pressed }) => [
@@ -183,8 +183,6 @@ const OrderCardComponent: React.FC<OrderCardProps> = ({
         </View>
       )}
 
-      {/* Who's carrying it. Tappable to call once the payload carries a number;
-          otherwise it's the driver's name on its own. */}
       {driver ? (
         driverPhone ? (
           <Pressable
@@ -224,7 +222,6 @@ const OrderCardComponent: React.FC<OrderCardProps> = ({
         )
       ) : null}
 
-      {/* Customer number — opens WhatsApp rather than the dialer. */}
       {customerPhone ? (
         <Pressable
           style={({ pressed }) => [
@@ -258,16 +255,29 @@ const OrderCardComponent: React.FC<OrderCardProps> = ({
         </Text>
       ) : null}
 
-      {/* Only while the parcel is still in nobody's hands. */}
-      {cancellable && onCancel ? (
-        <AppButton
-          label="Cancel order"
-          variant="outline"
-          fullWidth
-          loading={canceling}
-          onPress={handleCancel}
-          testID={`order-${order.id}-cancel`}
-        />
+      {onShowDetails || (cancellable && onCancel) ? (
+        <View style={styles.actions}>
+          {onShowDetails ? (
+            <AppButton
+              label="Show details"
+              variant="secondary"
+              fullWidth
+              onPress={handleShowDetails}
+              testID={`order-${order.id}-details`}
+            />
+          ) : null}
+
+          {cancellable && onCancel ? (
+            <AppButton
+              label="Cancel order"
+              variant="outline"
+              fullWidth
+              loading={canceling}
+              onPress={handleCancel}
+              testID={`order-${order.id}-cancel`}
+            />
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
