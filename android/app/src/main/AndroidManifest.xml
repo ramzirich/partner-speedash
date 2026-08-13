@@ -8,6 +8,10 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Holds the order socket open while the app is backgrounded, so a
+         delivery can be announced without the app being in front. See
+         src/services/backgroundOrders.ts. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
@@ -55,11 +59,14 @@
       </activity>
 
       <!-- react-native-background-actions foreground service. On Android 14+
-           the manifest type must match the type we start it with in JS
-           (foregroundServiceType: ['location']). -->
+           the type we start it with in JS must be declared here, and the
+           library exposes a single service class for every caller — so both
+           types are listed: `dataSync` for the order socket
+           (services/backgroundOrders.ts) and `location` for the driver-location
+           watch (hooks/useBackgroundLocation.ts). -->
       <service
         android:name="com.asterinet.react.bgactions.RNBackgroundActionsTask"
-        android:foregroundServiceType="location"
+        android:foregroundServiceType="dataSync|location"
         tools:node="merge" />
     </application>
 </manifest>

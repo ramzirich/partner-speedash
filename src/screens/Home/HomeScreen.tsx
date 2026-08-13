@@ -29,10 +29,19 @@ import { useIsMounted } from '../../hooks/useIsMounted';
 import { useOrdersRealtime } from '../../hooks/useOrdersRealtime';
 import {
   initOrderNotifications,
-  notifyOrderStatus,
   onOrderNotificationPress,
   startNotificationPressRouting,
 } from '../../services/notifications';
+import {
+  announceOrderStatus,
+  startBackgroundOrderNotifications,
+  stopBackgroundOrderNotifications,
+} from '../../services/backgroundOrders';
+import {
+  registerForPush,
+  startPushRouting,
+  unregisterFromPush,
+} from '../../services/push';
 import { useAppDispatch, useAppSelector, logout } from '../../store';
 import { ScreenProps } from '../../navigation';
 import { colors } from '../../theme';
@@ -106,6 +115,8 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   useEffect(() => {
     initOrderNotifications();
     startNotificationPressRouting();
+    startPushRouting();
+    registerForPush();
   }, []);
 
   const [range, setRange] = useState<DateRange>(defaultRange);
@@ -165,26 +176,12 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     });
   }, [refreshOrders]);
 
-  const announcedRef = useRef<Map<string, string>>(new Map());
-
-  const announceStatus = useCallback((order: OrderDocument): void => {
-    const status = order.status as OrderDocumentStatus;
-    if (announcedRef.current.get(order._id) === status) {
-      return;
-    }
-    announcedRef.current.set(order._id, status);
-
-    if (status === 'DELIVERED') {
-      notifyOrderStatus(order, status);
-    }
-  }, []);
-
   const handleTrackedStatusChange = useCallback(
     (_status: OrderDocumentStatus, order: OrderDocument) => {
       refreshOrders(true);
-      announceStatus(order);
+      announceOrderStatus(order);
     },
-    [refreshOrders, announceStatus],
+    [refreshOrders],
   );
 
   const liveOrderIds = useMemo(
@@ -195,19 +192,28 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     [orders],
   );
 
-  const handleLiveOrder = useCallback(
-    (updated: Order, doc: OrderDocument) => {
-      setOrders(prev =>
-        prev.some(order => order.id === updated.id)
-          ? prev.map(order => (order.id === updated.id ? updated : order))
-          : prev,
-      );
-      announceStatus(doc);
-    },
-    [announceStatus],
-  );
+  const handleLiveOrder = useCallback((updated: Order, doc: OrderDocument) => {
+    setOrders(prev =>
+      prev.some(order => order.id === updated.id)
+        ? prev.map(order => (order.id === updated.id ? updated : order))
+        : prev,
+    );
+    announceOrderStatus(doc);
+  }, []);
 
   useOrdersRealtime(liveOrderIds, handleLiveOrder);
+
+  const hasLiveOrders = liveOrderIds.length > 0;
+
+  useEffect(() => {
+    if (!hasLiveOrders) {
+      return;
+    }
+    startBackgroundOrderNotifications();
+    return () => {
+      stopBackgroundOrderNotifications();
+    };
+  }, [hasLiveOrders]);
 
   const handleCancelRequest = useCallback(
     (order: Order) => setPendingCancel(order),
@@ -279,6 +285,7 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const handleLogoutConfirm = useCallback(async () => {
     setLoggingOut(true);
     try {
+      await unregisterFromPush();
       if (refreshToken) {
         await authApi.logout({ refreshToken, allDevices: false });
       }

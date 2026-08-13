@@ -5,7 +5,18 @@ import {
   setSessionRefreshedHandler,
   setAuthClearedHandler,
 } from '../api/authToken';
-import { authReducer, logout, sessionRefreshed } from './authSlice';
+import {
+  clearSession,
+  loadSession,
+  saveSession,
+  type StoredSession,
+} from '../api/sessionStorage';
+import {
+  authReducer,
+  logout,
+  sessionRefreshed,
+  sessionRestored,
+} from './authSlice';
 
 export const store = configureStore({
   reducer: {
@@ -43,6 +54,55 @@ store.subscribe(() => {
 setSessionRefreshedHandler(session => store.dispatch(sessionRefreshed(session)));
 setAuthClearedHandler(() => store.dispatch(logout()));
 
-export { setCredentials, sessionRefreshed, logout } from './authSlice';
+
+const toStoredSession = (state: RootState): StoredSession | null => {
+  const { user, accessToken, refreshToken, refreshTokenExpiresAt } = state.auth;
+  if (!user || !accessToken || !refreshToken || !refreshTokenExpiresAt) {
+    return null;
+  }
+  return { user, accessToken, refreshToken, refreshTokenExpiresAt };
+};
+
+let lastPersisted: string | null = null;
+
+store.subscribe(() => {
+  if (!store.getState().auth.hydrated) {
+    return;
+  }
+  const session = toStoredSession(store.getState());
+  const next = session ? JSON.stringify(session) : null;
+  if (next === lastPersisted) {
+    return;
+  }
+  lastPersisted = next;
+  if (session) {
+    saveSession(session);
+  } else {
+    clearSession();
+  }
+});
+
+export const restoreSession = async (): Promise<void> => {
+  let session: StoredSession | null = null;
+  try {
+    session = await loadSession();
+  } catch {
+    // `loadSession` already swallows its own failures, so this only catches
+    // something truly unexpected. Falling through to dispatch matters more
+    // than the reason does: without it `hydrated` never flips and the splash
+    // stays up forever.
+  }
+  if (session) {
+    lastPersisted = JSON.stringify(session);
+  }
+  store.dispatch(sessionRestored(session));
+};
+
+export {
+  setCredentials,
+  sessionRefreshed,
+  sessionRestored,
+  logout,
+} from './authSlice';
 export type { AuthState } from './authSlice';
 export { useAppDispatch, useAppSelector } from './hooks';

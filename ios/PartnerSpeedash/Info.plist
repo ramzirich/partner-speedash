@@ -36,6 +36,13 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>PartnerSpeedash needs your location to show you on the map while you deliver.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<!-- Lets a push wake the app while it is backgrounded or suspended, so
+		     data-only messages reach the background handler in index.js. Without
+		     this, iOS only draws the notification and never runs our JS. -->
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

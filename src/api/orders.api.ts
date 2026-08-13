@@ -385,6 +385,9 @@ const zonesUrl = (): string => httpUrl('/api/zones/dropoff');
 const statusUrl = (orderId: string): string =>
   gatewayUrl(`/orders/${encodeURIComponent(orderId)}/status`);
 
+const partnerStatusUrl = (orderId: string): string =>
+  gatewayUrl(`/orders/${encodeURIComponent(orderId)}/status/partner`);
+
 const isOrderDocumentLike = (value: unknown): value is OrderDocument =>
   typeof value === 'object' &&
   value !== null &&
@@ -395,7 +398,9 @@ const patchStatus = async (
   partnerId: string,
   newStatus: OrderStatusUpdate,
 ): Promise<Order | null> => {
-  const res = await apiRequest<unknown>(statusUrl(orderId), {
+  const url =
+    newStatus === 'CANCELED' ? partnerStatusUrl(orderId) : statusUrl(orderId);
+  const res = await apiRequest<unknown>(url, {
     method: 'PATCH',
     body: JSON.stringify({ partnerId, newStatus }),
   });

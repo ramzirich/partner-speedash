@@ -1,18 +1,13 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { AuthUser, RefreshResponse, SignInResponse } from '../api';
+import type { StoredSession } from '../api/sessionStorage';
 
-/**
- * Authenticated-session state.
- *
- * Holds the signed-in user plus the tokens returned by POST /api/login. Tokens
- * live here in memory only for now; persisting them securely (react-native-
- * keychain) so the session survives a restart is a separate, planned step.
- */
 export interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;
   refreshToken: string | null;
   refreshTokenExpiresAt: string | null;
+  hydrated: boolean;
 }
 
 const initialState: AuthState = {
@@ -20,6 +15,7 @@ const initialState: AuthState = {
   accessToken: null,
   refreshToken: null,
   refreshTokenExpiresAt: null,
+  hydrated: false,
 };
 
 const authSlice = createSlice({
@@ -41,9 +37,20 @@ const authSlice = createSlice({
       state.refreshToken = action.payload.refreshToken;
       state.refreshTokenExpiresAt = action.payload.refreshTokenExpiresAt;
     },
-    logout: () => initialState,
+    sessionRestored: (state, action: PayloadAction<StoredSession | null>) => {
+      state.hydrated = true;
+      if (!action.payload) {
+        return;
+      }
+      state.user = action.payload.user;
+      state.accessToken = action.payload.accessToken;
+      state.refreshToken = action.payload.refreshToken;
+      state.refreshTokenExpiresAt = action.payload.refreshTokenExpiresAt;
+    },
+    logout: () => ({ ...initialState, hydrated: true }),
   },
 });
 
-export const { setCredentials, sessionRefreshed, logout } = authSlice.actions;
+export const { setCredentials, sessionRefreshed, sessionRestored, logout } =
+  authSlice.actions;
 export const authReducer = authSlice.reducer;

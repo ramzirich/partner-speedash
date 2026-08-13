@@ -129,6 +129,48 @@ export const notifyOrderStatus = async (
   }
 };
 
+/**
+ * Show a notification that came from the server over FCM.
+ *
+ * Only the *foreground* path needs this. When the app is backgrounded or dead,
+ * Android draws the `notification` block of the message itself — the JS side is
+ * never consulted. In the foreground FCM stays silent by design and hands the
+ * message to `onMessage` instead, so we redraw it here to keep one look and one
+ * channel across both paths.
+ *
+ * The id is the order id, matching `notifyOrderStatus`, so a push and a
+ * socket-driven update collapse into the same entry rather than stacking two.
+ */
+export const displayPushNotification = async (payload: {
+  orderId?: string;
+  title: string;
+  body: string;
+}): Promise<void> => {
+  const mod = loadNotifee();
+  if (!mod) {
+    return;
+  }
+  try {
+    if (!ready && !(await initOrderNotifications())) {
+      return;
+    }
+    await mod.default.displayNotification({
+      id: payload.orderId,
+      title: payload.title,
+      body: payload.body,
+      android: {
+        channelId: CHANNEL_ID,
+        importance: mod.AndroidImportance.HIGH,
+        pressAction: { id: 'default', launchActivity: 'default' },
+        autoCancel: true,
+        smallIcon: 'ic_launcher',
+      },
+    });
+  } catch {
+    available = false;
+  }
+};
+
 // --- Press routing ----------------------------------------------------------
 
 /**

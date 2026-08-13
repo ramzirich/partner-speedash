@@ -13,6 +13,7 @@ export {
   toDayUnix,
 } from './orders.api';
 export { customersApi } from './customers.api';
+export { devicesApi } from './devices.api';
 export { locationApi } from './location.api';
 export {
   acquireSocket,
@@ -78,6 +79,13 @@ export type {
   ReportLocationRequest,
   ReportLocationResponse,
 } from './location.api';
+export type {
+  DevicePlatform,
+  RegisterDeviceRequest,
+  UnregisterDeviceRequest,
+  DeviceResponse,
+} from './devices.api';
+export type { StoredSession } from './sessionStorage';
 export type {
   ApiCustomerLocation,
   CustomerAddress,

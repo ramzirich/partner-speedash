@@ -38,7 +38,9 @@
       "Bash(curl -s -m 5 -o /dev/null -w \"metro localhost:8081 -> %{http_code}\\\\n\" http://localhost:8081/status)",
       "Bash(netstat -ano)",
       "Bash(powershell -NoProfile -Command \"Get-Process -Id 26232 | Select-Object Id,ProcessName,StartTime | Format-List\")",
-      "PowerShell(adb shell run-as com.driver ls /data/data/com.driver/shared_prefs/)"
+      "PowerShell(adb shell run-as com.driver ls /data/data/com.driver/shared_prefs/)",
+      "PowerShell($em = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\"; if \\(Test-Path $em\\) { & $em -list-avds } else { \"emulator.exe not found at $em\" })",
+      "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; $j = Start-Job { param\\($a\\) & $a -s emulator-5554 shell getprop sys.boot_completed } -ArgumentList $adb; if \\(Wait-Job $j -Timeout 20\\) { \"boot_completed=\" + \\(Receive-Job $j\\) } else { \"TIMED OUT - emulator not answering adb shell\"; Stop-Job $j }; Remove-Job $j -Force)"
     ],
     "additionalDirectories": [
       "c:\\Users\\PcUser\\.claude\\projects\\c--Users-PcUser-Desktop-projects-driver\\memory",

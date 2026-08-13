@@ -1,6 +1,21 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+// Must come after com.android.application. Consumes app/google-services.json —
+// download it from the Firebase console for the com.partnerspeedash package.
+//
+// Applied only when the file is actually there. The plugin fails the whole
+// build over a missing google-services.json, which would make Firebase config a
+// precondition for compiling the app at all — including for anyone who just
+// cloned the repo, since the file is gitignored credentials. The JS side
+// already treats Firebase as optional (see src/services/push.ts), so without
+// the file the app builds and runs on socket updates alone; drop it in and push
+// starts working on the next build.
+if (file("google-services.json").exists()) {
+    apply plugin: "com.google.gms.google-services"
+} else {
+    logger.lifecycle("google-services.json not found in android/app — building without push notifications.")
+}
 
 project.ext.vectoricons = [
     iconFontNames: ['Ionicons.ttf']
