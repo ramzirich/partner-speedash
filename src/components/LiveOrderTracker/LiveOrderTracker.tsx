@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { LiveBadge } from '../LiveBadge';
@@ -7,23 +7,13 @@ import { colors } from '../../theme';
 import { openWhatsApp } from '../../utils/whatsapp';
 import { isTerminalStatus } from '../../hooks/useOrderTracking';
 import type { OrderDocument, OrderDocumentStatus, OrderParty } from '../../api';
+import type { OrderStatusTimes } from '../../services/orderStatusTimes';
 import type { Order } from '../OrderCard';
 import { styles } from './LiveOrderTracker.styles';
 
 const ICON_SIZE = 16;
 const AVATAR_ICON_SIZE = 18;
 const PHONE_ICON_SIZE = 13;
-
-const toSeconds = (value: unknown): number | undefined => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const parsed = Date.parse(value);
-    return Number.isFinite(parsed) ? parsed / 1000 : undefined;
-  }
-  return undefined;
-};
 
 const hasDriver = (driverId: OrderParty | string | null | undefined): boolean =>
   driverId != null && driverId !== '';
@@ -33,6 +23,7 @@ export interface LiveOrderTrackerProps {
   status: OrderDocumentStatus | null;
   card: Order | null;
   isConnected: boolean;
+  times?: OrderStatusTimes;
   error?: string | null;
   testID?: string;
 }
@@ -42,6 +33,7 @@ const LiveOrderTrackerComponent: React.FC<LiveOrderTrackerProps> = ({
   status,
   card,
   isConnected,
+  times,
   error = null,
   testID = 'live-order-tracker',
 }) => {
@@ -54,15 +46,6 @@ const LiveOrderTrackerComponent: React.FC<LiveOrderTrackerProps> = ({
   const handleContactDriver = useCallback(
     () => openWhatsApp(driverPhone),
     [driverPhone],
-  );
-
-  const assignedAt = useMemo(
-    () => toSeconds(order?.assignedAt),
-    [order?.assignedAt],
-  );
-  const deliveredAt = useMemo(
-    () => toSeconds(order?.deliveredAt),
-    [order?.deliveredAt],
   );
 
   if (!order || !card) {
@@ -110,8 +93,7 @@ const LiveOrderTrackerComponent: React.FC<LiveOrderTrackerProps> = ({
 
       <OrderStatusTimeline
         status={status}
-        assignedAt={assignedAt}
-        deliveredAt={deliveredAt}
+        times={times}
         testID={`${testID}-timeline`}
       />
 

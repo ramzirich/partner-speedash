@@ -9,6 +9,7 @@ import {
   notifyOrderStatus,
   orderStatusMessage,
 } from './notifications';
+import { recordOrderStatusTime } from './orderStatusTimes';
 
 const TASK_NAME = 'OrderUpdates';
 
@@ -39,6 +40,11 @@ export const announceOrderStatus = (order: OrderDocument): void => {
   if (orderStatusMessage(status)) {
     notifyOrderStatus(order, status);
   }
+};
+
+const handleOrderUpdate = (order: OrderDocument): void => {
+  recordOrderStatusTime(order);
+  announceOrderStatus(order);
 };
 
 const keepAliveTask = async (): Promise<void> => {
@@ -72,7 +78,7 @@ export const startBackgroundOrderNotifications = async (): Promise<void> => {
   await initOrderNotifications();
 
   acquireSocket();
-  offOrderUpdate = onOrderUpdate(announceOrderStatus);
+  offOrderUpdate = onOrderUpdate(handleOrderUpdate);
   appStateSub = AppState.addEventListener('change', handleAppStateChange);
 
   try {

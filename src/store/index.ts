@@ -11,6 +11,7 @@ import {
   saveSession,
   type StoredSession,
 } from '../api/sessionStorage';
+import { clearOrderStatusTimes } from '../services/orderStatusTimes';
 import {
   authReducer,
   logout,
@@ -27,11 +28,6 @@ export const store = configureStore({
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
-// --- Auth <-> API bridge ----------------------------------------------------
-// Redux is the source of truth; the API layer (`apiRequest`) can't read hooks,
-// so we (a) mirror the tokens into its non-React holder on every change and
-// (b) register how the refresh-on-401 flow writes back into Redux. This is the
-// only place the store and the auth API are stitched together.
 
 let lastAccessToken = store.getState().auth.accessToken;
 let lastRefreshToken = store.getState().auth.refreshToken;
@@ -50,7 +46,6 @@ store.subscribe(() => {
   }
 });
 
-// Persist a successful refresh (rotated pair) and end the session on failure.
 setSessionRefreshedHandler(session => store.dispatch(sessionRefreshed(session)));
 setAuthClearedHandler(() => store.dispatch(logout()));
 
@@ -79,6 +74,7 @@ store.subscribe(() => {
     saveSession(session);
   } else {
     clearSession();
+    clearOrderStatusTimes();
   }
 });
 

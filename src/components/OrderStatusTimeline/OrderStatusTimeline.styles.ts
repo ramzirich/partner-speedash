@@ -76,16 +76,6 @@ export const styles = StyleSheet.create({
   labelCanceled: {
     color: colors.textSecondary,
   },
-  hint: {
-    ...typography.caption,
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  hintCurrent: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
   timestamp: {
     ...typography.caption,
     fontSize: 11,

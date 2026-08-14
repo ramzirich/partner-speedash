@@ -16,7 +16,10 @@ import {
 } from '../api';
 import type { OrderDocument, OrderDocumentStatus } from '../api';
 import type { Order, OrderProgress } from '../components/OrderCard';
+import { recordOrderStatusTime } from '../services/orderStatusTimes';
+import type { OrderStatusTimes } from '../services/orderStatusTimes';
 import { useIsMounted } from './useIsMounted';
+import { useOrderStatusTimes } from './useOrderStatusTimes';
 
 export const ORDER_STEPS: readonly OrderProgress[] = [
   'PENDING',
@@ -65,6 +68,7 @@ export interface OrderTracking {
   error: string | null;
   card: Order | null;
   isTerminal: boolean;
+  times: OrderStatusTimes;
   refresh: () => void;
 }
 
@@ -88,6 +92,7 @@ export const useOrderTracking = (
   const lastStatusRef = useRef<string | null>(null);
 
   const apply = useCallback((next: OrderDocument): void => {
+    recordOrderStatusTime(next);
     setOrder(current => (supersedes(next, current) ? next : current));
   }, []);
 
@@ -189,6 +194,8 @@ export const useOrderTracking = (
     [order],
   );
 
+  const times = useOrderStatusTimes(orderId);
+
   return {
     order,
     status,
@@ -196,6 +203,7 @@ export const useOrderTracking = (
     error,
     card,
     isTerminal: isTerminalStatus(status),
+    times,
     refresh,
   };
 };

@@ -93,6 +93,7 @@ const OrderDetailsSheetComponent: React.FC<OrderDetailsSheetProps> = ({
                 status={tracking.status}
                 card={tracking.card}
                 isConnected={tracking.isConnected}
+                times={tracking.times}
                 error={tracking.error}
                 testID={`${testID}-tracker`}
               />

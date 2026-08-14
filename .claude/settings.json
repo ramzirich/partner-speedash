@@ -40,7 +40,14 @@
       "Bash(powershell -NoProfile -Command \"Get-Process -Id 26232 | Select-Object Id,ProcessName,StartTime | Format-List\")",
       "PowerShell(adb shell run-as com.driver ls /data/data/com.driver/shared_prefs/)",
       "PowerShell($em = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\"; if \\(Test-Path $em\\) { & $em -list-avds } else { \"emulator.exe not found at $em\" })",
-      "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; $j = Start-Job { param\\($a\\) & $a -s emulator-5554 shell getprop sys.boot_completed } -ArgumentList $adb; if \\(Wait-Job $j -Timeout 20\\) { \"boot_completed=\" + \\(Receive-Job $j\\) } else { \"TIMED OUT - emulator not answering adb shell\"; Stop-Job $j }; Remove-Job $j -Force)"
+      "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; $j = Start-Job { param\\($a\\) & $a -s emulator-5554 shell getprop sys.boot_completed } -ArgumentList $adb; if \\(Wait-Job $j -Timeout 20\\) { \"boot_completed=\" + \\(Receive-Job $j\\) } else { \"TIMED OUT - emulator not answering adb shell\"; Stop-Job $j }; Remove-Job $j -Force)",
+      "PowerShell(npm install @react-native-async-storage/async-storage)",
+      "PowerShell(npx tsc --noEmit)",
+      "PowerShell(npx eslint src App.tsx)",
+      "PowerShell(npx prettier --check src/services/orderStatusTimes.ts src/hooks/useOrderStatusTimes.ts src/hooks/useOrderTracking.ts src/components/OrderStatusTimeline/OrderStatusTimeline.tsx src/components/LiveOrderTracker/LiveOrderTracker.tsx App.tsx)",
+      "PowerShell(npx prettier --write src/services/orderStatusTimes.ts src/components/OrderStatusTimeline/OrderStatusTimeline.tsx)",
+      "PowerShell(& \"$PWD\\\\android\\\\gradlew.bat\" -p android installDebug)",
+      "PowerShell(npx jest --silent)"
     ],
     "additionalDirectories": [
       "c:\\Users\\PcUser\\.claude\\projects\\c--Users-PcUser-Desktop-projects-driver\\memory",

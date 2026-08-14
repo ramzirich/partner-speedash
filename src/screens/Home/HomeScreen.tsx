@@ -37,6 +37,7 @@ import {
   startBackgroundOrderNotifications,
   stopBackgroundOrderNotifications,
 } from '../../services/backgroundOrders';
+import { recordOrderStatusTime } from '../../services/orderStatusTimes';
 import {
   registerForPush,
   startPushRouting,
@@ -196,6 +197,7 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   );
 
   const handleLiveOrder = useCallback((updated: Order, doc: OrderDocument) => {
+    recordOrderStatusTime(doc);
     setOrders(prev =>
       prev.some(order => order.id === updated.id)
         ? prev.map(order => (order.id === updated.id ? updated : order))

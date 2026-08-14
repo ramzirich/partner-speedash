@@ -623,6 +623,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
                 status={tracking.status}
                 card={tracking.card}
                 isConnected={tracking.isConnected}
+                times={tracking.times}
                 error={tracking.error}
               />
               {tracking.isTerminal ? (
