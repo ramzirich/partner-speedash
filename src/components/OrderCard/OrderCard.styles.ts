@@ -1,166 +1,137 @@
 import { StyleSheet } from 'react-native';
 import { colors, radius, spacing, typography } from '../../theme';
 
+/** Circular badge holding a row's leading glyph. */
+const BADGE_SIZE = 28;
+const DOT_SIZE = 7;
+
 export const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.background,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    borderLeftWidth: 4,
-    padding: spacing.md,
-    gap: spacing.sm,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
   },
-  headerRow: {
+  header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  status: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+  },
+  dot: {
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
+  },
+  statusText: {
+    ...typography.button,
+    fontSize: 12,
+    letterSpacing: 0.2,
+    flexShrink: 1,
+  },
+  orderId: {
+    ...typography.button,
+    fontSize: 12,
+    letterSpacing: 0.4,
+    color: colors.textSecondary,
+  },
+
+  body: {
+    padding: spacing.md,
     gap: spacing.sm,
   },
-  headerMeta: {
-    alignItems: 'flex-end',
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
   },
-  amount: {
-    ...typography.h2,
-    fontSize: 18,
-    color: colors.primary,
+  rowAccent: {
+    backgroundColor: colors.primaryWash,
+  },
+  badge: {
+    width: BADGE_SIZE,
+    height: BADGE_SIZE,
+    borderRadius: BADGE_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  rowText: {
+    flex: 1,
+    gap: 1,
   },
   label: {
     ...typography.button,
     fontSize: 10,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     color: colors.textSecondary,
   },
-  orderId: {
-    ...typography.body,
+  value: {
+    ...typography.button,
+    fontSize: 14,
+    lineHeight: 19,
+    color: colors.textPrimary,
+  },
+  meta: {
+    ...typography.caption,
     fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  tagText: {
-    ...typography.button,
-    fontSize: 11,
-  },
-
-  place: {
-    gap: 2,
-  },
-  location: {
-    ...typography.button,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  navigateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.primaryWash,
-  },
-  navigateText: {
-    flex: 1,
-    gap: 2,
-  },
-  navigateValue: {
-    ...typography.button,
-    fontSize: 14,
-    color: colors.textPrimary,
   },
 
   note: {
+    borderLeftWidth: 2,
+    borderLeftColor: colors.border,
+    paddingLeft: spacing.sm,
+    marginTop: spacing.xs / 2,
+  },
+  noteText: {
     ...typography.body,
     fontSize: 13,
     lineHeight: 18,
+    fontStyle: 'italic',
     color: colors.textSecondary,
   },
 
-  contactRow: {
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    paddingTop: spacing.sm,
+    marginTop: spacing.xs / 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
-  contactLabel: {
-    ...typography.button,
-    fontSize: 10,
-    letterSpacing: 0.5,
-    color: colors.textSecondary,
-  },
-  contactAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 1,
-    gap: spacing.xs,
-  },
-  contactName: {
-    ...typography.button,
-    fontSize: 13,
-    color: colors.textSecondary,
-    flexShrink: 1,
-  },
-  contactValue: {
-    ...typography.button,
-    fontSize: 14,
-    color: colors.textPrimary,
+  amount: {
+    ...typography.h2,
+    fontSize: 20,
+    lineHeight: 24,
+    color: colors.primary,
   },
 
-  customerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-  },
-  customerLabel: {
-    ...typography.button,
-    fontSize: 10,
-    letterSpacing: 0.5,
-    color: colors.textSecondary,
-  },
-  customerAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 1,
-    gap: spacing.xs,
-  },
-  customerPhone: {
-    ...typography.button,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
   actions: {
     gap: spacing.sm,
+    marginTop: spacing.xs / 2,
   },
 
   pressed: {
-    opacity: 0.85,
+    opacity: 0.7,
   },
 });

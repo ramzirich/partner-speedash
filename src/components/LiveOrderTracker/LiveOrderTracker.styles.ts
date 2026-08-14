@@ -1,6 +1,8 @@
 import { StyleSheet } from 'react-native';
 import { colors, radius, spacing, typography } from '../../theme';
 
+const AVATAR_SIZE = 36;
+
 export const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.background,
@@ -74,67 +76,47 @@ export const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
-  driverBlock: {
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
-  driverHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  driverAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  contactAvatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.accentWash,
   },
-  driverText: {
+  contactText: {
     flex: 1,
     gap: 2,
   },
-  driverLabel: {
+  contactLabel: {
     ...typography.button,
     fontSize: 10,
     letterSpacing: 0.5,
     color: colors.textSecondary,
   },
-  driverName: {
+  contactName: {
     ...typography.button,
     fontSize: 15,
     color: colors.textPrimary,
   },
-  driverPhoneRow: {
+  contactPhoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
   },
-  driverPhone: {
-    ...typography.button,
-    fontSize: 13,
-    flexShrink: 1,
-    color: colors.textSecondary,
-  },
-  contactButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  contactText: {
+  contactPhone: {
     ...typography.button,
     fontSize: 14,
-    color: colors.textPrimary,
+    flexShrink: 1,
+    color: colors.textSecondary,
   },
 
   detail: {

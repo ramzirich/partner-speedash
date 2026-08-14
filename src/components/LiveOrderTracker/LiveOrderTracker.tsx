@@ -18,6 +18,85 @@ const PHONE_ICON_SIZE = 13;
 const hasDriver = (driverId: OrderParty | string | null | undefined): boolean =>
   driverId != null && driverId !== '';
 
+interface ContactRowProps {
+  label: string;
+  name?: string;
+  phone?: string;
+  onPress?: () => void;
+  accessibilityLabel?: string;
+  testID?: string;
+}
+
+const ContactRow: React.FC<ContactRowProps> = ({
+  label,
+  name,
+  phone,
+  onPress,
+  accessibilityLabel,
+  testID,
+}) => {
+  const content = (
+    <>
+      <View style={styles.contactAvatar}>
+        <Ionicons name="person" size={AVATAR_ICON_SIZE} color={colors.accent} />
+      </View>
+      <View style={styles.contactText}>
+        <Text style={styles.contactLabel}>{label}</Text>
+        {name ? (
+          <Text style={styles.contactName} numberOfLines={1}>
+            {name}
+          </Text>
+        ) : null}
+        {phone ? (
+          <View style={styles.contactPhoneRow}>
+            <Ionicons
+              name="logo-whatsapp"
+              size={PHONE_ICON_SIZE}
+              color={colors.whatsapp}
+            />
+            <Text
+              style={styles.contactPhone}
+              numberOfLines={1}
+              testID={testID ? `${testID}-phone` : undefined}
+            >
+              {phone}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      {onPress ? (
+        <Ionicons
+          name="chevron-forward"
+          size={ICON_SIZE}
+          color={colors.textSecondary}
+        />
+      ) : null}
+    </>
+  );
+
+  if (!onPress) {
+    return (
+      <View style={styles.contactRow} testID={testID}>
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.contactRow, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint="Opens WhatsApp"
+      hitSlop={4}
+      testID={testID}
+    >
+      {content}
+    </Pressable>
+  );
+};
+
 export interface LiveOrderTrackerProps {
   order: OrderDocument | null;
   status: OrderDocumentStatus | null;
@@ -40,12 +119,18 @@ const LiveOrderTrackerComponent: React.FC<LiveOrderTrackerProps> = ({
   const isTerminal = isTerminalStatus(status);
   const driver = card?.driver;
   const driverPhone = driver?.phone;
+  const customerPhone = card?.customerPhone;
   const assigned = hasDriver(order?.driverId);
   const isSearching = status === 'PENDING' && !assigned;
 
   const handleContactDriver = useCallback(
     () => openWhatsApp(driverPhone),
     [driverPhone],
+  );
+
+  const handleContactCustomer = useCallback(
+    () => openWhatsApp(customerPhone),
+    [customerPhone],
   );
 
   if (!order || !card) {
@@ -111,63 +196,16 @@ const LiveOrderTrackerComponent: React.FC<LiveOrderTrackerProps> = ({
       ) : null}
 
       {assigned ? (
-        <View style={styles.driverBlock} testID={`${testID}-driver`}>
-          <View style={styles.driverHeader}>
-            <View style={styles.driverAvatar}>
-              <Ionicons
-                name="person"
-                size={AVATAR_ICON_SIZE}
-                color={colors.accent}
-              />
-            </View>
-            <View style={styles.driverText}>
-              <Text style={styles.driverLabel}>DRIVER</Text>
-              <Text style={styles.driverName} numberOfLines={1}>
-                {driver?.name ?? 'Assigned'}
-              </Text>
-              {driverPhone ? (
-                <View style={styles.driverPhoneRow}>
-                  <Ionicons
-                    name="logo-whatsapp"
-                    size={PHONE_ICON_SIZE}
-                    color={colors.whatsapp}
-                  />
-                  <Text
-                    style={styles.driverPhone}
-                    numberOfLines={1}
-                    testID={`${testID}-driver-phone`}
-                  >
-                    {driverPhone}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          {driverPhone && !isTerminal ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.contactButton,
-                pressed && styles.pressed,
-              ]}
-              onPress={handleContactDriver}
-              accessibilityRole="button"
-              accessibilityLabel={`Message ${
-                driver?.name ?? 'the driver'
-              } on ${driverPhone} on WhatsApp`}
-              accessibilityHint="Opens WhatsApp"
-              hitSlop={4}
-              testID={`${testID}-driver-whatsapp`}
-            >
-              <Ionicons
-                name="logo-whatsapp"
-                size={ICON_SIZE}
-                color={colors.whatsapp}
-              />
-              <Text style={styles.contactText}>Message driver</Text>
-            </Pressable>
-          ) : null}
-        </View>
+        <ContactRow
+          label="DRIVER"
+          name={driver?.name ?? 'Assigned'}
+          phone={driverPhone}
+          onPress={driverPhone && !isTerminal ? handleContactDriver : undefined}
+          accessibilityLabel={`Message ${
+            driver?.name ?? 'the driver'
+          } on ${driverPhone} on WhatsApp`}
+          testID={`${testID}-driver`}
+        />
       ) : null}
 
       <View style={styles.detail}>
@@ -177,13 +215,14 @@ const LiveOrderTrackerComponent: React.FC<LiveOrderTrackerProps> = ({
         </Text>
       </View>
 
-      {card.customerPhone ? (
-        <View style={styles.detail}>
-          <Text style={styles.detailLabel}>CUSTOMER</Text>
-          <Text style={styles.detailValue} numberOfLines={1}>
-            {card.customerPhone}
-          </Text>
-        </View>
+      {customerPhone ? (
+        <ContactRow
+          label="CUSTOMER"
+          phone={customerPhone}
+          onPress={handleContactCustomer}
+          accessibilityLabel={`Message customer ${customerPhone} on WhatsApp`}
+          testID={`${testID}-customer`}
+        />
       ) : null}
 
       {card.note ? (
