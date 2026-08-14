@@ -506,7 +506,6 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
               onChangeText={changeHandlers.customerName}
               onBlur={blurHandlers.customerName}
               error={errors.customerName}
-              placeholder="Rami Haddad"
               autoCapitalize="words"
               returnKeyType="next"
               onSubmitEditing={focusDescription}
@@ -551,7 +550,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
               onChangeText={changeHandlers.googleMapsLink}
               onBlur={blurHandlers.googleMapsLink}
               error={errors.googleMapsLink}
-              placeholder="https://maps.google.com/?q=33.8938,35.5018"
+              placeholder="https://maps.app.goo.gl/"
               keyboardType="url"
               autoCapitalize="none"
               returnKeyType="next"
