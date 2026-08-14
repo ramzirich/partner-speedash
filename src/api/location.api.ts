@@ -12,18 +12,10 @@ export interface ReportLocationResponse {
   longitude: number;
 }
 
-export const locationApi = {//TODO: remove mock
+export const locationApi = {
   async report(
     payload: ReportLocationRequest,
   ): Promise<ReportLocationResponse> {
-    if (true) {
-
-      return {
-        success: true,
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-      };
-    }
     return apiRequest<ReportLocationResponse>('/api/driver/location', {
       method: 'POST',
       body: JSON.stringify({

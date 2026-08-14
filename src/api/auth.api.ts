@@ -1,6 +1,4 @@
-import { ENV } from '../config/env';
 import { apiRequest } from './client';
-import { ApiError } from './errors';
 
 export type UserRole = 'partner' | 'driver' | 'admin';
 export interface AuthUser {
@@ -65,11 +63,6 @@ export interface LogoutResponse {
   success: boolean;
 }
 
-const maskEmail = (email: string): string => {
-  const [name, domain] = email.split('@');
-  return `${name.charAt(0)}***@${domain ?? 'gmail.com'}`;
-};
-
 // --- Public API -------------------------------------------------------------
 
 export const authApi = {
@@ -99,33 +92,14 @@ export const authApi = {
     });
   },
 
-  async forgotPassword(email: string): Promise<ForgotPasswordResponse> {//TODO
-    if (ENV.useMockApi) {
-      if (!email) {
-        throw new ApiError('UNKNOWN', 'Missing email', {
-          userMessage: 'Please enter the email tied to your account.',
-        });
-      }
-      return { sentTo: maskEmail(email) };
-    }
-
+  async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
     return apiRequest<ForgotPasswordResponse>('/auth/forgot-password', {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
   },
 
-  //TODO: all otp
-  async requestOtp(email: string): Promise<RequestOtpResponse> {//TODO
-    if (ENV.useMockApi) {
-      if (!email) {
-        throw new ApiError('UNKNOWN', 'Missing email', {
-          userMessage: 'Please enter the email tied to your account.',
-        });
-      }
-      return { sentTo: maskEmail(email), expiresInSec: 120 };
-    }
-
+  async requestOtp(email: string): Promise<RequestOtpResponse> {
     return apiRequest<RequestOtpResponse>('/auth/otp/request', {
       method: 'POST',
       body: JSON.stringify({ email }),
@@ -133,10 +107,6 @@ export const authApi = {
   },
 
   async verifyOtp(payload: VerifyOtpRequest): Promise<VerifyOtpResponse> {
-    if (ENV.useMockApi) {
-      return { resetToken: 'mock-reset-token' };
-    }
-
     return apiRequest<VerifyOtpResponse>('/auth/otp/verify', {
       method: 'POST',
       body: JSON.stringify(payload),

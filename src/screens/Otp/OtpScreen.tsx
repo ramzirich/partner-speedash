@@ -28,8 +28,6 @@ const BACK_ICON_SIZE = 26;
 /**
  * OTP verification step. The code was already requested by the previous screen;
  * here the driver types it in. On success we hand off to Home.
- *
- * Hint for the mock backend: the only accepted code is 123456.
  */
 const OtpScreenComponent: React.FC<ScreenProps<'Otp'>> = ({
   navigation,

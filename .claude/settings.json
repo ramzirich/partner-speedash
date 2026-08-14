@@ -86,12 +86,14 @@
       "Bash(adb -s R5CX80XSFTZ install -r android/app/build/outputs/apk/debug/app-debug.apk)",
       "Bash(adb -s R5CX80XSFTZ shell monkey -p com.partnerspeedash -c android.intent.category.LAUNCHER 1)",
       "Bash(adb -s R5CX80XSFTZ shell pidof com.partnerspeedash)",
-      "PowerShell(npx eslint src/screens/Home/CreateOrderTab.tsx src/screens/Home/CreateOrderTab.styles.ts)"
+      "PowerShell(npx eslint src/screens/Home/CreateOrderTab.tsx src/screens/Home/CreateOrderTab.styles.ts)",
+      "Bash(mkdir -p \"/c/Users/PcUser/AppData/Local/Temp/claude/c--Users-PcUser-Desktop-projects-partner-speedash/72305563-8f88-445f-be71-0e0b48966ca6/scratchpad\" && echo ok)"
     ],
     "additionalDirectories": [
       "c:\\Users\\PcUser\\.claude\\projects\\c--Users-PcUser-Desktop-projects-driver\\memory",
       "C:\\Users\\PcUser\\AppData\\Local\\Temp\\claude\\c--Users-PcUser-Desktop-projects-driver\\13a7e944-eb60-4c80-9863-a22019155e81\\scratchpad",
-      "C:\\Users\\PcUser\\Downloads"
+      "C:\\Users\\PcUser\\Downloads",
+      "C:\\Users\\PcUser\\AppData\\Local\\Temp\\claude\\c--Users-PcUser-Desktop-projects-partner-speedash\\72305563-8f88-445f-be71-0e0b48966ca6\\scratchpad"
     ]
   }
 }
