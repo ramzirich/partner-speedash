@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand orange (theme/colors.ts → colors.primary). Tints the notification
+         small icon and the app name in the shade. Referenced from
+         AndroidManifest.xml for the notifications Android draws itself. -->
+    <color name="notification_accent">#FF6B00</color>
+</resources>

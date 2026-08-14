@@ -1,5 +1,9 @@
 import { Platform } from 'react-native';
 import type { OrderDocument, OrderDocumentStatus } from '../api';
+import { colors } from '../theme';
+// Type-only, so it is erased at build time and never reaches the native module
+// the lazy loading below exists to avoid.
+import type { NotificationAndroid } from '@notifee/react-native';
 
 /**
  * System notifications for order progress — the heads-up kind, like a chat app.
@@ -74,6 +78,40 @@ export const initOrderNotifications = async (): Promise<boolean> => {
   }
 };
 
+/**
+ * The Android half of a notification, in one place so the two paths that raise
+ * one (socket-driven and push) can't drift apart visually.
+ *
+ * The two icons are not interchangeable. Android discards the small icon's
+ * colour and keeps only its alpha, then tints the silhouette with `color` — so
+ * `smallIcon` points at a flat scooter glyph; the logo would flatten to a solid
+ * blob in the status bar. The logo itself goes in `largeIcon`, the thumbnail on
+ * the right of the row, which keeps full colour.
+ */
+const androidNotification = (
+  mod: NotifeeModule,
+  body: string,
+): NotificationAndroid => ({
+  channelId: CHANNEL_ID,
+  importance: mod.AndroidImportance.HIGH,
+  // `launchActivity: 'default'` is what brings the app to the front from
+  // outside it — without it a press dismisses and nothing opens.
+  pressAction: { id: 'default', launchActivity: 'default' },
+  autoCancel: true,
+  smallIcon: 'ic_notification',
+  largeIcon: 'ic_notification_large',
+  // Brand orange — tints the small icon and the app name in the shade.
+  // Mirrored in res/values/colors.xml for the notifications Android draws
+  // itself, which never reach this code. Keep the two in step.
+  color: colors.primary,
+  // Expand to the whole message instead of ellipsising it to one line.
+  style: { type: mod.AndroidStyle.BIGTEXT, text: body },
+  // `showTimestamp` is a no-op unless `timestamp` is set explicitly, so both go
+  // together — the shade then shows when the update landed.
+  timestamp: Date.now(),
+  showTimestamp: true,
+});
+
 const shortId = (orderId: string): string => `#${orderId.slice(-6)}`;
 
 /**
@@ -114,15 +152,7 @@ export const notifyOrderStatus = async (
       id: order._id,
       title: `Order ${shortId(order._id)}`,
       body,
-      android: {
-        channelId: CHANNEL_ID,
-        importance: mod.AndroidImportance.HIGH,
-        // `launchActivity: 'default'` is what brings the app to the front from
-        // outside it — without it a press dismisses and nothing opens.
-        pressAction: { id: 'default', launchActivity: 'default' },
-        autoCancel: true,
-        smallIcon: 'ic_launcher',
-      },
+      android: androidNotification(mod, body),
     });
   } catch {
     available = false;
@@ -158,13 +188,7 @@ export const displayPushNotification = async (payload: {
       id: payload.orderId,
       title: payload.title,
       body: payload.body,
-      android: {
-        channelId: CHANNEL_ID,
-        importance: mod.AndroidImportance.HIGH,
-        pressAction: { id: 'default', launchActivity: 'default' },
-        autoCancel: true,
-        smallIcon: 'ic_launcher',
-      },
+      android: androidNotification(mod, payload.body),
     });
   } catch {
     available = false;

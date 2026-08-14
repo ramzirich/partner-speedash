@@ -110,7 +110,9 @@ const taskOptions = {
   taskName: 'DriverLocation',
   taskTitle: 'PartnerSpeedash',
   taskDesc: 'Sharing your location while you deliver.',
-  taskIcon: { name: 'ic_launcher', type: 'mipmap' },
+  // See services/backgroundOrders.ts — the launcher icon can't serve as a
+  // status-bar icon; Android flattens it to a tinted silhouette.
+  taskIcon: { name: 'ic_notification', type: 'drawable' },
   color: colors.primary,
   // Android 14+ requires the service type; the manifest declares the matching
   // `location` type + FOREGROUND_SERVICE_LOCATION permission.

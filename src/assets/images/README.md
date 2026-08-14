@@ -4,23 +4,20 @@ Drop bundled raster assets here.
 
 ## Required: `logo.png`
 
-The `AppLogo` component loads **`logo.png`** from this folder. Save the
-SpeedDash logo as:
+The `AppLogo` component loads **`logo.png`** from this folder — the SpeedDash
+scooter mark over the `SPEEDDASH` wordmark, **394x287 with a transparent
+background**, so it drops onto any screen colour. `AppLogo` gives it a square
+box and `resizeMode: 'contain'`, so the landscape art letterboxes inside that
+box: at `size={112}` it draws 112x82.
 
-```
-src/assets/images/logo.png
-```
+The master it was cut from is a JPEG on white. The background was removed by
+flood-filling inward **from the border only** — a plain "delete white pixels"
+pass punches holes through the white `SPEED` lettering and the rider's shoe,
+because those are white too but aren't connected to the edge.
 
-Optional but recommended for crisp rendering on high-density screens, add
-@2x / @3x variants next to it (Metro picks them automatically):
-
-```
-logo.png       // 1x  (e.g. 168x168)
-logo@2x.png    // 2x  (e.g. 336x336)
-logo@3x.png    // 3x  (e.g. 504x504)
-```
-
-Until `logo.png` exists, the Metro bundle will fail to resolve it.
+The same master feeds the launcher icons and the notification icons; see
+[docs/branding.md](../../../docs/branding.md) for the full set and how to
+regenerate it after a logo change.
 
 ## In use: `delivery1.jpg` (illustrated landing hero)
 

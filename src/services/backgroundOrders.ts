@@ -55,7 +55,10 @@ const taskOptions = {
   taskName: TASK_NAME,
   taskTitle: 'Tracking your order',
   taskDesc: "We'll let you know when it's delivered.",
-  taskIcon: { name: 'ic_launcher', type: 'mipmap' },
+  // The scooter glyph, not the launcher icon: Android keeps only a status-bar
+  // icon's alpha and tints it, so the full-colour logo flattens to a blob.
+  // Same drawable the order notifications use — see services/notifications.ts.
+  taskIcon: { name: 'ic_notification', type: 'drawable' },
   color: colors.primary,
   foregroundServiceType: ['dataSync'] as ['dataSync'],
 };

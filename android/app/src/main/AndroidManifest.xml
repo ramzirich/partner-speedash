@@ -45,6 +45,29 @@
         android:name="com.google.android.geo.API_KEY"
         android:value="${googleMapsApiKey}" />
 
+      <!-- Branding for the notifications Android draws itself. When the app is
+           backgrounded or dead, FCM renders the message's `notification` block
+           natively and never calls into JS, so the styling in
+           src/services/notifications.ts can't apply — these defaults are the
+           only way that path gets the scooter mark and the brand orange.
+           Keep them in step with `androidNotification()` there. -->
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_icon"
+        android:resource="@drawable/ic_notification" />
+      <!-- react-native-firebase's own manifest defaults these two (to
+           @color/white and an empty channel), so the merger needs an explicit
+           tools:replace to let ours win. -->
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_color"
+        android:resource="@color/notification_accent"
+        tools:replace="android:resource" />
+      <!-- Must match CHANNEL_ID in src/services/notifications.ts, or these land
+           on a default low-importance channel and never show as a banner. -->
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_channel_id"
+        android:value="order-status"
+        tools:replace="android:value" />
+
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
