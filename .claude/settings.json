@@ -85,7 +85,8 @@
       "PowerShell($p = Get-CimInstance Win32_Process -Filter \"ProcessId = 11228\"; $p.CommandLine; \"--- cwd via parent ---\"; \\(Get-CimInstance Win32_Process -Filter \"ProcessId = $\\($p.ParentProcessId\\)\"\\).CommandLine)",
       "Bash(adb -s R5CX80XSFTZ install -r android/app/build/outputs/apk/debug/app-debug.apk)",
       "Bash(adb -s R5CX80XSFTZ shell monkey -p com.partnerspeedash -c android.intent.category.LAUNCHER 1)",
-      "Bash(adb -s R5CX80XSFTZ shell pidof com.partnerspeedash)"
+      "Bash(adb -s R5CX80XSFTZ shell pidof com.partnerspeedash)",
+      "PowerShell(npx eslint src/screens/Home/CreateOrderTab.tsx src/screens/Home/CreateOrderTab.styles.ts)"
     ],
     "additionalDirectories": [
       "c:\\Users\\PcUser\\.claude\\projects\\c--Users-PcUser-Desktop-projects-driver\\memory",

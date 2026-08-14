@@ -75,8 +75,4 @@ export const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: 'auto',
   },
-
-  tracker: {
-    gap: spacing.md,
-  },
 });

@@ -23,7 +23,6 @@ import type { AppDropdownOption } from '../../components/AppDropdown';
 import { AppTextField } from '../../components/AppTextField';
 import { BrandBackdrop } from '../../components/BrandBackdrop';
 import { InlineAlert } from '../../components/InlineAlert';
-import { LiveOrderTracker } from '../../components/LiveOrderTracker';
 import { MotoLoader } from '../../components/MotoLoader';
 import { PhoneField } from '../../components/PhoneField';
 import type { CompletePhone } from '../../components/PhoneField';
@@ -171,7 +170,9 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
   const [lookupMessage, setLookupMessage] = useState('');
   const lookupRequestId = useRef(0);
 
-  const tracking = useOrderTracking(createdOrder?._id, {
+  // The card itself is gone from this screen, but the subscription stays so the
+  // freshly created order still raises status notifications.
+  useOrderTracking(createdOrder?._id, {
     seed: createdOrder,
     onStatusChange: onTrackedStatusChange,
   });
@@ -382,8 +383,6 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
   );
 
   const dismissError = useCallback(() => setErrorVisible(false), []);
-
-  const handleDismissTracker = useCallback(() => setCreatedOrder(null), []);
 
   const focusName = useCallback(() => nameRef.current?.focus(), []);
   const focusDescription = useCallback(
@@ -616,27 +615,6 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
             />
           </Animated.View>
 
-          {createdOrder ? (
-            <View style={styles.tracker}>
-              <LiveOrderTracker
-                order={tracking.order}
-                status={tracking.status}
-                card={tracking.card}
-                isConnected={tracking.isConnected}
-                times={tracking.times}
-                error={tracking.error}
-              />
-              {tracking.isTerminal ? (
-                <AppButton
-                  label="Track another order"
-                  variant="outline"
-                  fullWidth
-                  onPress={handleDismissTracker}
-                  testID="order-tracker-dismiss"
-                />
-              ) : null}
-            </View>
-          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
 
