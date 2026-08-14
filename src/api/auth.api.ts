@@ -7,8 +7,9 @@ export interface AuthUser {
   id: string;
   email: string;
   role: UserRole;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
+  businessName?: string;
 }
 
 export interface SignInRequest {

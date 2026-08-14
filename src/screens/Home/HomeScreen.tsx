@@ -98,6 +98,7 @@ const capitalize = (value: string): string =>
 const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const isMounted = useIsMounted();
   const dispatch = useAppDispatch();
+  const businessName = useAppSelector(state => state.auth.user?.businessName);
   const firstName = useAppSelector(state => state.auth.user?.firstName);
   const partnerId = useAppSelector(state => state.auth.user?.id);
   const refreshToken = useAppSelector(state => state.auth.refreshToken);
@@ -108,7 +109,9 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   const [logoutVisible, setLogoutVisible] = useState(false);
 
   const greeting = getGreeting();
-  const displayName = firstName ? capitalize(firstName) : 'Partner';
+  const displayName =
+    capitalize(businessName?.trim() ?? '') ||
+    (firstName ? capitalize(firstName) : 'Partner');
 
   useDriverSocket(partnerId);
 
