@@ -50,9 +50,27 @@ const STATUS_ORDER: Record<OrderStatus, number> = {
 const SCROLL_DELAY_MS = 250;
 const SCROLL_VIEW_POSITION = 0.1;
 
-type OrdersSegment = 'open' | 'delivered';
+type OrdersSegment = 'open' | 'delivered' | 'canceled';
 
 const isDelivered = (order: Order): boolean => order.status === 'done';
+
+const isCanceled = (order: Order): boolean => order.status === 'rejected';
+
+const isOpen = (order: Order): boolean =>
+  !isDelivered(order) && !isCanceled(order);
+
+const segmentOf = (order: Order): OrdersSegment => {
+  if (isDelivered(order)) {
+    return 'delivered';
+  }
+  return isCanceled(order) ? 'canceled' : 'open';
+};
+
+const EMPTY_TEXT: Record<OrdersSegment, string> = {
+  open: 'No open orders for these days.',
+  delivered: 'No delivered orders for these days.',
+  canceled: 'No canceled orders for these days.',
+};
 
 const sortByStatus = (orders: Order[]): Order[] =>
   [...orders].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
@@ -89,7 +107,10 @@ const SegmentButton: React.FC<SegmentButtonProps> = ({
     accessibilityState={{ selected: active }}
     testID={testID}
   >
-    <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]}>
+    <Text
+      style={[styles.segmentLabel, active && styles.segmentLabelActive]}
+      numberOfLines={1}
+    >
       {label}
     </Text>
     <View style={[styles.segmentCount, active && styles.segmentCountActive]}>
@@ -124,15 +145,24 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
   const [detailsOrderId, setDetailsOrderId] = useState<string | null>(null);
 
   const openOrders = useMemo(
-    () => sortByStatus(orders.filter(order => !isDelivered(order))),
+    () => sortByStatus(orders.filter(isOpen)),
     [orders],
   );
   const deliveredOrders = useMemo(
     () => sortByNewest(orders.filter(isDelivered)),
     [orders],
   );
+  const canceledOrders = useMemo(
+    () => sortByNewest(orders.filter(isCanceled)),
+    [orders],
+  );
 
-  const data = segment === 'open' ? openOrders : deliveredOrders;
+  const data = useMemo(() => {
+    if (segment === 'delivered') {
+      return deliveredOrders;
+    }
+    return segment === 'canceled' ? canceledOrders : openOrders;
+  }, [segment, openOrders, deliveredOrders, canceledOrders]);
 
   useEffect(() => {
     if (!focusOrderId) {
@@ -140,7 +170,7 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
     }
     const target = orders.find(order => order.id === focusOrderId);
     if (target) {
-      setSegment(isDelivered(target) ? 'delivered' : 'open');
+      setSegment(segmentOf(target));
     }
   }, [focusOrderId, orders]);
 
@@ -179,7 +209,7 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
       <OrderCard
         order={item}
         onCancel={onCancel}
-        onShowDetails={isDelivered(item) ? undefined : handleShowDetails}
+        onShowDetails={isOpen(item) ? handleShowDetails : undefined}
         canceling={item.id === cancelingOrderId}
       />
     ),
@@ -203,11 +233,9 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
 
   const showOpen = useCallback(() => setSegment('open'), []);
   const showDelivered = useCallback(() => setSegment('delivered'), []);
+  const showCanceled = useCallback(() => setSegment('canceled'), []);
 
-  const emptyText =
-    segment === 'open'
-      ? 'No open orders for these days.'
-      : 'No delivered orders for these days.';
+  const emptyText = EMPTY_TEXT[segment];
 
   return (
     <View style={styles.container}>
@@ -227,6 +255,13 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
           active={segment === 'delivered'}
           onPress={showDelivered}
           testID="orders-segment-delivered"
+        />
+        <SegmentButton
+          label="Canceled"
+          count={canceledOrders.length}
+          active={segment === 'canceled'}
+          onPress={showCanceled}
+          testID="orders-segment-canceled"
         />
       </View>
 

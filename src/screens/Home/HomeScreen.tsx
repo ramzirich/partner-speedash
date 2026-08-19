@@ -361,7 +361,9 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     [],
   );
 
-  const openCount = orders.filter(o => o.status !== 'done').length;
+  const openCount = orders.filter(
+    o => o.status !== 'done' && o.status !== 'rejected',
+  ).length;
 
   const headerStyle = useMemo(
     () => [styles.header, animated.header],

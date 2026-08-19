@@ -13,8 +13,8 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // Open ⇄ delivered switch — a track holding two equal halves, the active one
-  // lifted out of it on a white card.
+  // Open ⇄ delivered ⇄ canceled switch — a track holding three equal thirds,
+  // the active one lifted out of it on a white card.
   segments: {
     flexDirection: 'row',
     padding: spacing.xs,
@@ -27,8 +27,9 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
     paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
     borderRadius: radius.pill,
   },
   segmentActive: {
