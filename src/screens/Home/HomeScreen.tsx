@@ -25,6 +25,7 @@ import type { Order } from '../../components/OrderCard';
 import { authApi, ordersApi, toApiError, toDayUnix } from '../../api';
 import type { OrderDocument, OrderDocumentStatus } from '../../api';
 import { useDriverSocket } from '../../hooks/useDriverSocket';
+import { refreshDropoffZones } from '../../hooks/useDropoffZones';
 import { useIsMounted } from '../../hooks/useIsMounted';
 import { useOrdersRealtime } from '../../hooks/useOrdersRealtime';
 import {
@@ -167,6 +168,16 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
   useEffect(() => {
     refreshOrders();
   }, [refreshOrders]);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async (): Promise<void> => {
+    setRefreshing(true);
+    await Promise.all([refreshOrders(true), refreshDropoffZones()]);
+    if (isMounted()) {
+      setRefreshing(false);
+    }
+  }, [refreshOrders, isMounted]);
 
   const handleOrderCreated = useCallback(() => {
     refreshOrders(true);
@@ -374,6 +385,8 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
           <CreateOrderTab
             summary={ordersSummary}
             summaryIsError={ordersError !== null}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
             onCreated={handleOrderCreated}
             onTrackedStatusChange={handleTrackedStatusChange}
           />
@@ -386,6 +399,8 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
             cancelingOrderId={cancelingOrderId}
             range={range}
             onRangeChange={setRange}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
             onCancel={handleCancelRequest}
             onTrackedStatusChange={handleTrackedStatusChange}
           />

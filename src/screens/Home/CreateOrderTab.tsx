@@ -11,6 +11,7 @@ import {
   Animated,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -125,6 +126,8 @@ const refreshShownErrors = (
 export interface CreateOrderTabProps {
   summary: string;
   summaryIsError?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
   onCreated: () => void;
   onTrackedStatusChange?: (
     status: OrderDocumentStatus,
@@ -135,6 +138,8 @@ export interface CreateOrderTabProps {
 const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
   summary,
   summaryIsError = false,
+  refreshing = false,
+  onRefresh,
   onCreated,
   onTrackedStatusChange,
 }) => {
@@ -441,6 +446,19 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
     () => [styles.actions, actionsEntrance],
     [actionsEntrance],
   );
+  const refreshControl = useMemo(
+    () =>
+      onRefresh ? (
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[colors.primary]}
+          tintColor={colors.primary}
+        />
+      ) : undefined,
+    [refreshing, onRefresh],
+  );
+
   const summaryStyle = useMemo(
     () => [styles.meta, summaryIsError ? styles.metaError : null],
     [summaryIsError],
@@ -457,6 +475,7 @@ const CreateOrderTabComponent: React.FC<CreateOrderTabProps> = ({
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          refreshControl={refreshControl}
         >
           <Animated.View style={introStyle}>
             <Text style={styles.title}>New order</Text>

@@ -11,6 +11,7 @@ import {
   FlatList,
   ListRenderItem,
   Pressable,
+  RefreshControl,
   Text,
   View,
 } from 'react-native';
@@ -30,6 +31,8 @@ export interface OrdersTabProps {
   cancelingOrderId?: string | null;
   range: DateRange;
   onRangeChange: (range: DateRange) => void;
+  refreshing?: boolean;
+  onRefresh?: () => void;
   onCancel: (order: Order) => void;
   onTrackedStatusChange?: (
     status: OrderDocumentStatus,
@@ -110,6 +113,8 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
   cancelingOrderId = null,
   range,
   onRangeChange,
+  refreshing = false,
+  onRefresh,
   onCancel,
   onTrackedStatusChange,
 }) => {
@@ -183,6 +188,19 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
 
   const keyExtractor = useCallback((item: Order) => item.id, []);
 
+  const refreshControl = useMemo(
+    () =>
+      onRefresh ? (
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[colors.primary]}
+          tintColor={colors.primary}
+        />
+      ) : undefined,
+    [refreshing, onRefresh],
+  );
+
   const showOpen = useCallback(() => setSegment('open'), []);
   const showDelivered = useCallback(() => setSegment('delivered'), []);
 
@@ -218,6 +236,7 @@ const OrdersTabComponent: React.FC<OrdersTabProps> = ({
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         onScrollToIndexFailed={handleScrollToIndexFailed}
+        refreshControl={refreshControl}
         style={styles.flatList}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}

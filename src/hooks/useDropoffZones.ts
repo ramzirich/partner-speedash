@@ -6,22 +6,44 @@ import { useIsMounted } from './useIsMounted';
 let cachedZones: ZoneDocument[] | null = null;
 let inFlight: Promise<ZoneDocument[]> | null = null;
 
+let generation = 0;
+const listeners = new Set<() => void>();
+
 const loadZones = (): Promise<ZoneDocument[]> => {
   if (cachedZones) {
     return Promise.resolve(cachedZones);
   }
   if (!inFlight) {
+    const requestGeneration = generation;
     inFlight = zonesApi
       .getDropoff()
       .then(zones => {
-        cachedZones = zones;
+        if (requestGeneration === generation) {
+          cachedZones = zones;
+        }
         return zones;
       })
       .finally(() => {
-        inFlight = null;
+        if (requestGeneration === generation) {
+          inFlight = null;
+        }
       });
   }
   return inFlight;
+};
+
+const invalidate = (): void => {
+  generation += 1;
+  cachedZones = null;
+  inFlight = null;
+};
+
+export const refreshDropoffZones = async (): Promise<void> => {
+  invalidate();
+  listeners.forEach(listener => listener());
+  try {
+    await loadZones();
+  } catch {}
 };
 
 export interface DropoffZonesState {
@@ -65,8 +87,15 @@ export const useDropoffZones = (): DropoffZonesState => {
     fetchZones();
   }, [fetchZones]);
 
+  useEffect(() => {
+    listeners.add(fetchZones);
+    return () => {
+      listeners.delete(fetchZones);
+    };
+  }, [fetchZones]);
+
   const reload = useCallback((): void => {
-    cachedZones = null;
+    invalidate();
     fetchZones();
   }, [fetchZones]);
 
