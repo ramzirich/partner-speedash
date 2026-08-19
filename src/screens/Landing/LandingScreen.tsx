@@ -45,12 +45,6 @@ const LandingScreenComponent: React.FC<ScreenProps<'Landing'>> = ({
     [navigation],
   );
 
-  // TODO: remove — dev shortcut to jump straight to Home (skips sign-in).
-  const handleDevGoHome = useCallback(
-    () => navigation.navigate('Home', { email: 'ramzi@gmail.com' }),
-    [navigation],
-  );
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       {/* Pale hero behind a translucent bar → dark icons. */}
@@ -105,19 +99,11 @@ const LandingScreenComponent: React.FC<ScreenProps<'Landing'>> = ({
                 style={styles.altActionHit}
                 accessibilityRole="button"
                 accessibilityLabel="Sign up"
-                testID="landing-sign-up">
+                testID="landing-sign-up"
+              >
                 <Text style={styles.altActionLink}>Sign up</Text>
               </Pressable>
             </View>
-
-            {/* TODO: remove — dev-only shortcut to Home, bypasses sign-in. */}
-            <AppButton
-              label="Go to Home (dev)"
-              variant="ghost"
-              fullWidth
-              onPress={handleDevGoHome}
-              testID="landing-dev-home"
-            />
           </View>
         </Animated.View>
       </View>

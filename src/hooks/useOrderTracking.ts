@@ -33,7 +33,6 @@ export const ORDER_STEPS: readonly OrderProgress[] = [
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
   'DELIVERED',
   'CANCELED',
-  'CANCELLED',
 ]);
 
 export const isTerminalStatus = (status: string | null | undefined): boolean =>

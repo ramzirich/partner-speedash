@@ -13,11 +13,7 @@ interface Entry {
 const ENTRY_LIMIT = 60;
 const ENTRY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-const TERMINAL: ReadonlySet<string> = new Set([
-  'DELIVERED',
-  'CANCELED',
-  'CANCELLED',
-]);
+const TERMINAL: ReadonlySet<string> = new Set(['DELIVERED', 'CANCELED']);
 
 const SECONDS_CEILING = 1e11;
 

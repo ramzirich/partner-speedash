@@ -47,12 +47,12 @@ export const useDriverLocation = (): DriverLocation => {
   const watchIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
 
     const start = async (): Promise<void> => {
       try {
         const granted = await requestAndroidPermission();
-        if (cancelled || !isMounted()) {
+        if (canceled || !isMounted()) {
           return;
         }
         if (!granted) {
@@ -100,7 +100,7 @@ export const useDriverLocation = (): DriverLocation => {
     start();
 
     return () => {
-      cancelled = true;
+      canceled = true;
       if (watchIdRef.current != null) {
         Geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;

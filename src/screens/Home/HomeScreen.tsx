@@ -427,7 +427,7 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
         title="Cancel this order?"
         message={
           pendingCancel
-            ? `The delivery to ${pendingCancel.dropoff} will be called off. This can't be undone.`
+            ? `The delivery will be called off. This can't be undone.`
             : ''
         }
         tone="danger"

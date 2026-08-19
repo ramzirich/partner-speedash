@@ -14,7 +14,7 @@ export type ApiOrderStatus =
   | 'AT_PICKUP'
   | 'ON_WAY'
   | 'DELIVERED'
-  | 'CANCELLED'
+  | 'CANCELED'
   | 'DECLINED';
 
 interface ApiAddress {
@@ -140,7 +140,6 @@ const toUiStatus = (status: string): OrderStatus => {
       return 'on_delivery';
     case 'DELIVERED':
       return 'done';
-    case 'CANCELLED':
     case 'CANCELED':
     case 'DECLINED':
     case 'REJECTED':
@@ -391,18 +390,18 @@ const partnerStatusUrl = (orderId: string): string =>
 const isOrderDocumentLike = (value: unknown): value is OrderDocument =>
   typeof value === 'object' &&
   value !== null &&
-  typeof (value as OrderDocument)._id === 'string';
+  (typeof (value as any)._id === 'string' ||
+    typeof (value as any).id === 'string');
 
 const patchStatus = async (
   orderId: string,
-  partnerId: string,
   newStatus: OrderStatusUpdate,
 ): Promise<Order | null> => {
   const url =
     newStatus === 'CANCELED' ? partnerStatusUrl(orderId) : statusUrl(orderId);
   const res = await apiRequest<unknown>(url, {
     method: 'PATCH',
-    body: JSON.stringify({ partnerId, newStatus }),
+    body: JSON.stringify({ newStatus }),
   });
   const doc = pickDocument(res);
   return doc ? fromOrderDocument(doc) : null;
@@ -502,18 +501,14 @@ export const ordersApi = {
     return docs.find(doc => doc._id === orderId) ?? null;
   },
 
-  async cancel({
-    orderId,
-    partnerId,
-  }: CancelOrderRequest): Promise<Order | null> {
-    return patchStatus(orderId, partnerId, 'CANCELED');
+  async cancel({ orderId }: CancelOrderRequest): Promise<Order | null> {
+    return patchStatus(orderId, 'CANCELED');
   },
 
   async updateStatus({
     orderId,
-    partnerId,
     newStatus,
   }: UpdateOrderStatusRequest): Promise<Order | null> {
-    return patchStatus(orderId, partnerId, newStatus);
+    return patchStatus(orderId, newStatus);
   },
 };
