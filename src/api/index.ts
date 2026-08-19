@@ -10,6 +10,7 @@ export {
   ordersApi,
   zonesApi,
   fromOrderDocument,
+  mergeOrderDocument,
   toDayUnix,
 } from './orders.api';
 export { customersApi } from './customers.api';

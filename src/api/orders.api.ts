@@ -342,6 +342,29 @@ export const fromOrderDocument = (doc: OrderDocument): Order => {
   };
 };
 
+const mergeParty = (
+  next: OrderParty | string | null | undefined,
+  current: OrderParty | string | null | undefined,
+): OrderParty | string | null | undefined =>
+  typeof next === 'string' &&
+  current != null &&
+  typeof current === 'object' &&
+  current._id === next
+    ? current
+    : next;
+
+export const mergeOrderDocument = (
+  next: OrderDocument,
+  current: OrderDocument | null | undefined,
+): OrderDocument =>
+  current
+    ? {
+        ...next,
+        driverId: mergeParty(next.driverId, current.driverId),
+        partnerId: mergeParty(next.partnerId, current.partnerId),
+      }
+    : next;
+
 const fromListItem = (item: ApiOrder | OrderDocument): Order =>
   '_id' in item ? fromOrderDocument(item) : toOrder(item);
 

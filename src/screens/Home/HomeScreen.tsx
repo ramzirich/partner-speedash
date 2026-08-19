@@ -8,6 +8,7 @@ import React, {
 import {
   ActivityIndicator,
   Animated,
+  AppState,
   Pressable,
   PressableStateCallbackType,
   StatusBar,
@@ -22,7 +23,15 @@ import { AppDialog } from '../../components/AppDialog';
 import { addDays, todayDateString } from '../../components/CalendarDatePicker';
 import type { DateRange } from '../../components/CalendarDatePicker';
 import type { Order } from '../../components/OrderCard';
-import { authApi, ordersApi, toApiError, toDayUnix } from '../../api';
+import {
+  authApi,
+  isSocketConnected,
+  onSocketStatus,
+  ordersApi,
+  resyncSocket,
+  toApiError,
+  toDayUnix,
+} from '../../api';
 import type { OrderDocument, OrderDocumentStatus } from '../../api';
 import { useDriverSocket } from '../../hooks/useDriverSocket';
 import { refreshDropoffZones } from '../../hooks/useDropoffZones';
@@ -199,6 +208,30 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     [refreshOrders],
   );
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        resyncSocket();
+        refreshOrders(true);
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshOrders]);
+
+  const wasConnectedRef = useRef(isSocketConnected());
+
+  useEffect(
+    () =>
+      onSocketStatus(connected => {
+        const reconnected = connected && !wasConnectedRef.current;
+        wasConnectedRef.current = connected;
+        if (reconnected) {
+          refreshOrders(true);
+        }
+      }),
+    [refreshOrders],
+  );
+
   const liveOrderIds = useMemo(
     () =>
       orders
@@ -211,7 +244,15 @@ const HomeScreenComponent: React.FC<ScreenProps<'Home'>> = ({ navigation }) => {
     recordOrderStatusTime(doc);
     setOrders(prev =>
       prev.some(order => order.id === updated.id)
-        ? prev.map(order => (order.id === updated.id ? updated : order))
+        ? prev.map(order =>
+            order.id === updated.id
+              ? {
+                  ...updated,
+                  driver: updated.driver ?? order.driver,
+                  partner: updated.partner ?? order.partner,
+                }
+              : order,
+          )
         : prev,
     );
     announceOrderStatus(doc);

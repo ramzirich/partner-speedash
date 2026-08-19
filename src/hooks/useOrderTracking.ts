@@ -7,6 +7,7 @@ import {
   fromOrderDocument,
   isSocketConnected,
   joinOrderRoom,
+  mergeOrderDocument,
   onOrderUpdate,
   onSocketStatus,
   ordersApi,
@@ -87,7 +88,9 @@ export const useOrderTracking = (
 
   const apply = useCallback((next: OrderDocument): void => {
     recordOrderStatusTime(next);
-    setOrder(current => (supersedes(next, current) ? next : current));
+    setOrder(current =>
+      supersedes(next, current) ? mergeOrderDocument(next, current) : current,
+    );
   }, []);
 
   useEffect(() => {
