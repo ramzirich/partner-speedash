@@ -38,13 +38,6 @@ const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
 export const isTerminalStatus = (status: string | null | undefined): boolean =>
   status != null && TERMINAL_STATUSES.has(status);
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-const trackingRange = (): { startDateUnix: number; endDateUnix: number } => {
-  const now = Date.now();
-  return { startDateUnix: now - DAY_MS, endDateUnix: now + DAY_MS };
-};
-
 const supersedes = (
   next: OrderDocument,
   current: OrderDocument | null,
@@ -90,10 +83,16 @@ export const useOrderTracking = (
 
   const lastStatusRef = useRef<string | null>(null);
 
+  const orderRef = useRef<OrderDocument | null>(null);
+
   const apply = useCallback((next: OrderDocument): void => {
     recordOrderStatusTime(next);
     setOrder(current => (supersedes(next, current) ? next : current));
   }, []);
+
+  useEffect(() => {
+    orderRef.current = order;
+  }, [order]);
 
   useEffect(() => {
     setOrder(null);
@@ -112,14 +111,18 @@ export const useOrderTracking = (
       return;
     }
     ordersApi
-      .findById(orderId, trackingRange())
+      .getById(orderId)
       .then(doc => {
         if (!isMounted()) {
           return;
         }
-        setError(null);
         if (doc) {
+          setError(null);
           apply(doc);
+          return;
+        }
+        if (!orderRef.current) {
+          setError('We could not find this order.');
         }
       })
       .catch(err => {

@@ -381,6 +381,9 @@ const httpUrl = (path: string): string => `${ENV.apiBaseUrl}${path}`;
 const ordersUrl = (): string => gatewayUrl('/orders');
 const zonesUrl = (): string => httpUrl('/api/zones/dropoff');
 
+const orderUrl = (orderId: string): string =>
+  `/api/order/${encodeURIComponent(orderId)}`;
+
 const statusUrl = (orderId: string): string =>
   gatewayUrl(`/orders/${encodeURIComponent(orderId)}/status`);
 
@@ -493,12 +496,12 @@ export const ordersApi = {
     return docs.map(fromOrderDocument);
   },
 
-  async findById(
-    orderId: string,
-    range: OrderHistoryRequest,
-  ): Promise<OrderDocument | null> {
-    const docs = await ordersApi.historyDocuments(range);
-    return docs.find(doc => doc._id === orderId) ?? null;
+
+  async getById(orderId: string): Promise<OrderDocument | null> {
+    const res = await apiRequest<unknown>(orderUrl(orderId), {
+      method: 'GET',
+    });
+    return pickDocument(res) ?? null;
   },
 
   async cancel({ orderId }: CancelOrderRequest): Promise<Order | null> {
